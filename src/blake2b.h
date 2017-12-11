@@ -4,11 +4,11 @@
 #include <stdint.h>
 
 typedef struct {
-   uint64_t state[8];
-   uint64_t hashed[2];
+    uint64_t state[8];
+    uint64_t hashed[2];
    uint8_t buffer[128];
-   size_t blen;
-   size_t hlen;
+    size_t blen;
+    size_t hlen;
 } blake2b_ctx;
 
 int blake2b_setup(blake2b_ctx *ctx, size_t hlen, uint8_t *key, size_t klen);

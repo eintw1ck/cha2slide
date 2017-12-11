@@ -146,7 +146,6 @@ int crypto(FILE *input, FILE *output, int encrypt, char *password)
 
 int main(int argc, char *argv[argc])
 {
-    char *input_str, *output_str, *command, *argument;
     FILE *input = NULL, *output = NULL;
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)
@@ -175,41 +174,35 @@ int main(int argc, char *argv[argc])
         exit(1);
     }
 
-    command = argv[1];
-    input_str = argv[2];
-    output_str = argv[3];
-    argument = argv[4];
-
-    if (!strcmp(input_str, output_str)) {
+    if (!strcmp(argv[2], argv[3])) {
         pprintf(LOG_ERROR, "Input and output cannot be the same file.");
         goto err;
     }
 
-    if(access(input_str, F_OK) != -1) {
-        pprintf(LOG_INFO, "Input file    \x1B[7m%s\x1B[0m", input_str);
-        input = fopen(input_str, "rb");
+    if(access(argv[2], F_OK) != -1) {
+        pprintf(LOG_INFO, "Input file    \x1B[7m%s\x1B[0m", argv[2]);
+        input = fopen(argv[2], "rb");
     } else {
         pprintf(LOG_ERROR, "Input file not found.");
         goto err;
     }
 
-    if(access(output_str, F_OK) != -1) {
+    if(access(argv[3], F_OK) != -1) {
         pprintf(LOG_WARNING, "Output file exists, overwriting.");
     }
-    pprintf(LOG_INFO, "Output file    \x1B[7m%s\x1B[0m", output_str);
-    output = fopen(output_str, "wb");
+    pprintf(LOG_INFO, "Output file    \x1B[7m%s\x1B[0m", argv[3]);
+    output = fopen(argv[3], "wb");
 
-    if (!strcmp(command, "encode")) {
+    if (!strcmp(argv[1], "encode")) {
         pprintf(LOG_INFO, "Mode        \x1B[7mencode\x1B[0m");
-        encode(input, output, parseuint(argument));
-    } else if (!strcmp(command, "encrypt")) {
+        encode(input, output, parseuint(argv[4]));
+    } else if (!strcmp(argv[1], "encrypt")) {
         pprintf(LOG_INFO, "Mode        \x1B[7mencrypt\x1B[0m");
-        crypto(input, output, 1, argument);
-    } else if (!strcmp(command, "decrypt")) {
+        crypto(input, output, 1, argv[4]);
+    } else if (!strcmp(argv[1], "decrypt")) {
         pprintf(LOG_INFO, "Mode        \x1B[7mdecrypt\x1B[0m");
-        crypto(input, output, 0, argument);
+        crypto(input, output, 0, argv[4]);
     }
-
 
 err:
     if (input) {

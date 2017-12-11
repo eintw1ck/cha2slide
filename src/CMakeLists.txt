@@ -4,6 +4,7 @@ add_library(png_core OBJECT
     crc32.c
     chacha20.c
     chunk.c
+    log.c
     macro.c
 )
 

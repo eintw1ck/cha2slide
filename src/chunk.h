@@ -12,11 +12,11 @@
 #define PNG_IEND DWORD('I','E','N','D')
 
 static uint32_t png_chunks_supported[] = {
-	PNG_IHDR,
-	PNG_PLTE,
-	PNG_IDAT,
-	PNG_IEND,
-	0,
+    PNG_IHDR,
+    PNG_PLTE,
+    PNG_IDAT,
+    PNG_IEND,
+    0,
 };
 
 /**
@@ -29,7 +29,7 @@ static uint32_t png_chunks_supported[] = {
 
 typedef struct png_chunk
 {
-	uint32_t type;
+    uint32_t type;
 } png_chunk;
 
 /**
@@ -37,49 +37,49 @@ typedef struct png_chunk
  */
 typedef struct png_ihdr
 {
-	uint32_t type;
-	uint32_t width;
-	uint32_t height;
-	uint8_t bit_depth;
-	uint8_t color_type;
-	uint8_t compression_method;
-	uint8_t filter_method;
-	uint8_t interlace_method;
+    uint32_t type;
+    uint32_t width;
+    uint32_t height;
+    uint8_t bit_depth;
+    uint8_t color_type;
+    uint8_t compression_method;
+    uint8_t filter_method;
+    uint8_t interlace_method;
 } png_ihdr;
 
 
 enum png_color_type
 {
-	png_color_grayscale = 0,
-	png_color_truecolor = 2,
-	png_color_indexed_color = 3,
-	png_color_greyscale_alpha = 4,
-	png_color_truecolor_alpha = 6,
+    png_color_grayscale = 0,
+    png_color_truecolor = 2,
+    png_color_indexed_color = 3,
+    png_color_greyscale_alpha = 4,
+    png_color_truecolor_alpha = 6,
 };
 
 enum png_compression_method
 {
-	png_compression_method_deflate = 0,
+    png_compression_method_deflate = 0,
 };
 
 enum png_filter_method
 {
-	png_filter_method_0 = 0,
+    png_filter_method_0 = 0,
 };
 
 enum png_filter0
 {
-	png_filter0_none = 0,
-	png_filter0_sub = 1,
-	png_filter0_up = 2, 
-	png_filter0_average = 3,
-	png_filter0_paeth = 4,
+    png_filter0_none = 0,
+    png_filter0_sub = 1,
+    png_filter0_up = 2, 
+    png_filter0_average = 3,
+    png_filter0_paeth = 4,
 };
 
 enum png_interlace_method
 {
-	png_interlace_none = 0,
-	png_interlace_adam7 = 1,
+    png_interlace_none = 0,
+    png_interlace_adam7 = 1,
 };
 
 /**
@@ -87,13 +87,13 @@ enum png_interlace_method
  */
 typedef struct png_plte
 {
-	uint32_t type;
-	uint8_t **palette; 
-	/** The palette size must be divisible by 3 so that palette can be 
-	 *  cast to uint8_t[palette_size/3][3] as it is an array of 24bit
-	 *  rgb values.
-	 */
-	uint8_t palette_size; 
+    uint32_t type;
+    uint8_t **palette; 
+    /** The palette size must be divisible by 3 so that palette can be 
+     *  cast to uint8_t[palette_size/3][3] as it is an array of 24bit
+     *  rgb values.
+     */
+    uint8_t palette_size; 
 } png_plte;
 
 /**
@@ -101,20 +101,20 @@ typedef struct png_plte
  */
 typedef struct png_idat
 {
-	uint32_t type;
-	uint8_t zlib_cmf;
-	uint8_t zlib_flag;
-	uint8_t deflate_flag; /* 0b0.00.00000  */
-	uint8_t *data;
-	uint32_t data_size;
+    uint32_t type;
+    uint8_t zlib_cmf;
+    uint8_t zlib_flag;
+    uint8_t deflate_flag; /* 0b0.00.00000  */
+    uint8_t *data;
+    uint32_t data_size;
 } png_idat;
 
 /**
  * @breif Image trailer
  */
-typedef	struct png_iend
+typedef    struct png_iend
 {
-	uint32_t type;
+    uint32_t type;
 } png_iend;
 
 int png_new_ihdr(png_ihdr **chunk, uint32_t width, uint32_t height, uint8_t bit_depth, uint8_t color_type, uint8_t interlace_method);

@@ -1,6 +1,6 @@
 add_library(png_core OBJECT
-	adler32.c
-	blake2b.c
+    adler32.c
+    blake2b.c
     crc32.c
     chacha20.c
     chunk.c
@@ -17,5 +17,5 @@ add_library(png_test OBJECT
 )
 
 add_library(png_slide OBJECT
-	cha2slide.c
+    cha2slide.c
 )

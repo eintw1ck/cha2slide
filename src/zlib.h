@@ -14,12 +14,12 @@
  * (Nibbles greater than 7 are not allowed). */
 enum zlib_cmf
 {
-	zlib_cmf_method_deflate = 1 << 3,
+    zlib_cmf_method_deflate = 1 << 3,
 };
 
 /* returns cinfo of a window size in the upper 4 bits*/
 static inline uint8_t zlib_cinfo(uint32_t window_size) {
-	return ((uint8_t)ceil(log2((double)(window_size ? window_size : 32768))) - 8) << 4;
+    return ((uint8_t)ceil(log2((double)(window_size ? window_size : 32768))) - 8) << 4;
 }
 
 /* Flags
@@ -31,7 +31,7 @@ static inline uint8_t zlib_cinfo(uint32_t window_size) {
 enum zlib_flg
 {
     zlib_fdict = 1 << 5, /* compressor used a preset dictionary */
-	zlib_flevel_fastest = 0 << 6, /* compressor used fastest algorithm */
+    zlib_flevel_fastest = 0 << 6, /* compressor used fastest algorithm */
     zlib_flevel_fast = 1 << 6, /* compressor used fast algorithm */
     zlib_flevel_default = 2 << 6, /* compressor used default algorithm */
     zlib_flevel_maximum = 3 << 6, /* compressor used maximum compression, slowest algorithm */
@@ -46,8 +46,8 @@ enum zlib_flg
  */
 static inline uint16_t zlib_fcheck(uint16_t cmf_flg)
 {
-//	return cmf_flg + (!!(cmf_flg % 31) * (31 - (cmf_flg % 31)));
-	return cmf_flg + (-(!!(cmf_flg % 31)) & (31 - (cmf_flg % 31)));
+//    return cmf_flg + (!!(cmf_flg % 31) * (31 - (cmf_flg % 31)));
+    return cmf_flg + (-(!!(cmf_flg % 31)) & (31 - (cmf_flg % 31)));
 }
 
 #endif /* __ZLIB_H */

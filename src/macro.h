@@ -18,15 +18,15 @@ extern inline uint64_t bswap64(uint64_t x);
 #define WRITE_CHUNK_BSWAP(data, bits) do { uint##bits##_t a = *(data); a = bswap##bits(a); WRITE_CHUNK_CRC(&a, bits/8); } while(0)
 
 #define BEGIN_CHUNK(file, type) \
-	int begin = ftell(file); \
-	uint32_t crc = DEFAULT_CRC32; \
-	fseek(file, 4, SEEK_CUR)
+    int begin = ftell(file); \
+    uint32_t crc = DEFAULT_CRC32; \
+    fseek(file, 4, SEEK_CUR)
 
 #define END_CHUNK(size) \
-	int end = ftell(file); \
-	fseek(file, begin, SEEK_SET); \
-	WRITE_CHUNK_BSWAP_NOCRC(&size, 32); \
-	fseek(file, end, SEEK_SET); \
-	WRITE_CHUNK_BSWAP_NOCRC(&crc, 32)
+    int end = ftell(file); \
+    fseek(file, begin, SEEK_SET); \
+    WRITE_CHUNK_BSWAP_NOCRC(&size, 32); \
+    fseek(file, end, SEEK_SET); \
+    WRITE_CHUNK_BSWAP_NOCRC(&crc, 32)
 
 #endif /* __MACRO_H */

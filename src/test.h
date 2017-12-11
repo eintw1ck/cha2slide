@@ -8,11 +8,11 @@
 #include "test_crc32.h"
 
 static const MunitSuite test_suites[] = {
-	{ (char*) "blake2b/", blake2b_tests, NULL, 0, MUNIT_SUITE_OPTION_NONE },
-	{ (char*) "chacha20/", chacha20_tests, NULL, 0, MUNIT_SUITE_OPTION_NONE },
-	{ (char*) "crc32/", crc32_tests, NULL, 0, MUNIT_SUITE_OPTION_NONE },
-	{ (char*) "chunk/", chunk_tests, NULL, 0, MUNIT_SUITE_OPTION_NONE },
-	{ NULL, NULL, NULL, 0, MUNIT_SUITE_OPTION_NONE }
+    { (char*) "blake2b/", blake2b_tests, NULL, 0, MUNIT_SUITE_OPTION_NONE },
+    { (char*) "chacha20/", chacha20_tests, NULL, 0, MUNIT_SUITE_OPTION_NONE },
+    { (char*) "crc32/", crc32_tests, NULL, 0, MUNIT_SUITE_OPTION_NONE },
+    { (char*) "chunk/", chunk_tests, NULL, 0, MUNIT_SUITE_OPTION_NONE },
+    { NULL, NULL, NULL, 0, MUNIT_SUITE_OPTION_NONE }
 };
 
 static const MunitSuite test_suite = {

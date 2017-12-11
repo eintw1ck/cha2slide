@@ -108,7 +108,7 @@ int encode(FILE *input, FILE *output, uint32_t width)
     return 0;
 }
 
-int encrypt(FILE *input, FILE *output, char *password)
+int crypto(FILE *input, FILE *output, int encrypt, char *password)
 {
     off_t size;
     fseeko(input, 0, SEEK_END);
@@ -119,53 +119,30 @@ int encrypt(FILE *input, FILE *output, char *password)
     uint8_t salt[22];
     uint8_t nonce[10];
 
-    size_t chacha_block = CHACHA20_BLOCK;
-
-    chacha20_random(salt, 22);
-    chacha20_random(nonce, 10);
-
-    blake2b(password, strlen(password), salt, 22, key, 32);
-
     char buffer[64];
     size_t bytes;
 
-    fwrite(salt, 1, 22, output);
-    fwrite(nonce, 1, 10, output);
+    size_t chacha_block = CHACHA20_BLOCK;
+
+    if (encrypt) {
+        chacha20_random(salt, 22);
+        chacha20_random(nonce, 10);
+        fwrite(salt, 1, 22, output);
+        fwrite(nonce, 1, 10, output);
+    } else {
+        fread(salt, 1, 22, input);
+        fread(nonce, 1, 10, input);
+    }
+
+    blake2b(password, strlen(password), salt, 22, key, 32);
 
     while (0 < (bytes = fread(buffer, 1, 64, input))) {
         chacha20(key, nonce, buffer, bytes, chacha_block++);
         fwrite(buffer, 1, bytes, output);
     }
+
+    return 0;
 }
-
-
-int decrypt(FILE *input, FILE *output, char *password)
-{
-    off_t size;
-    fseeko(input, 0, SEEK_END);
-    size = ftello(input);
-    rewind(input);
-
-    uint8_t key[32];
-    uint8_t salt[22];
-    uint8_t nonce[10];
-
-    size_t chacha_block = CHACHA20_BLOCK;
-
-    fread(salt, 1, 22, input);
-    fread(nonce, 1, 10, input);
-
-    blake2b(password, strlen(password), salt, 22, key, 32);
-
-    char buffer[64];
-    size_t bytes;
-
-    while ((bytes = fread(buffer, 1, sizeof(buffer), input))) {
-        chacha20(key, nonce, buffer, bytes, chacha_block++);
-        fwrite(buffer, 1, bytes, output);
-    }
-}
-
 
 int main(int argc, char *argv[argc])
 {
@@ -227,10 +204,10 @@ int main(int argc, char *argv[argc])
         encode(input, output, parseuint(argument));
     } else if (!strcmp(command, "encrypt")) {
         pprintf(LOG_INFO, "Mode\t\t\x1B[7mencrypt\x1B[0m");
-        encrypt(input, output, argument);
+        crypto(input, output, 1, argument);
     } else if (!strcmp(command, "decrypt")) {
         pprintf(LOG_INFO, "Mode\t\t\x1B[7mdecrypt\x1B[0m");
-        decrypt(input, output, argument);
+        crypto(input, output, 0, argument);
     }
 
 

@@ -1,6 +1,7 @@
 #include "log.h"
 
 #include <stdio.h>
+#include <stdarg.h>
 
 char *LOG_LEVEL[] = {
     "#", /* info */
@@ -35,7 +36,7 @@ void pprintf(int level, const char* format, ...)
     fprintf(LOG_FILE, "\n");
 }
 
-void dump_chunk(png_chunk *chunk)
+void print_chunk(png_chunk *chunk)
 {
         switch (((png_chunk*)chunk)->type) {
         case PNG_IHDR:

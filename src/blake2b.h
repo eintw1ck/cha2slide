@@ -1,6 +1,7 @@
 #if !defined(__BLAKE2B_H)
 #define __BLAKE2B_H
 
+#include <stddef.h>
 #include <stdint.h>
 
 typedef struct {

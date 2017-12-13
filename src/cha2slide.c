@@ -10,6 +10,7 @@ cha2slide decrypt out.enc alt.png test
 
 */
 
+#include <errno.h>
 #include <getopt.h>
 #include <stdlib.h>
 #include <string.h>

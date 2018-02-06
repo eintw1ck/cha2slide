@@ -22,7 +22,7 @@
 # details, see <https://creativecommons.org/publicdomain/zero/1.0/>
 
 TOP_SRCDIR="$(dirname $0)"
-CMAKE_WORKDIR="${TOP_SRCDIR}/.build"
+CMAKE_WORKDIR="${TOP_SRCDIR}/build"
 CMAKE_CMD="cmake ${TOP_SRCDIR}"
 
 BUILD_TYPE="Debug"

@@ -1,0 +1,74 @@
+\documentclass{article}
+
+\usepackage{xcolor}
+\usepackage{minted}
+\usepackage{url}
+\def\UrlBreaks{\do\/\do-}
+
+\begin{document}
+
+\title{ChaChaSlide}
+\author{Josh de Kock}
+
+\maketitle
+
+\section{Introduction}
+
+Cameras have for a long time had poor security, consisting of either no encryption available at all, or extremely weak encryption--and in more recent developments, they have included sometimes even web-servers for sharing images across a network, avoiding the need to use a cable to transfer photos off the device, or old Linux-based operating systems. In this paper we preset an approach to a PNG encoder with an encryption extension specifically aimed at running on DSLR firmware. The inclusion of the encoder into actual firmware is not written or discussed for simplicity's sake, though it is designed with this in mind.
+
+Encryption in Cameras for both video and images have been a basic feature requested by many journalists\cite{freedompress}. In the past, the only Camera manufacturer who has tried to implement slightly feasible encryption was Canon, in their EOS-1Ds Mark III, and EOS-1D Mark III\cite{canonenc}--however it was poorly executed and could be broken by dumping encryption keys from the firmware (which were unique but static)\cite{stackoverflow}.
+
+\section{Design}
+
+\subsection{Prototype}
+
+For the `prototype', I implemented the chacha20 symmetric cipher. A benefit of using a symmetric cipher is to preserve storage space on the camera. Asymmetric ciphers would generally increase the size of the ciphertext compared to the plaintext. In practice, the key would be randomly generated, and then added to an asymmetrically encrypted database on the camera. The decryption key for this database would not be stored on the camera. However, for simplicity's sake, this key generation will not be applied. Due to the limited hardware capabilities on the target hardware and for speed, the codec will be written in the low-level language, C.
+
+The encryption is based on an add and rotate cipher which generates a pseudo-random stream of data in 64 byte chunks up to a maximum of 256 GiB due to the 32 bit block counter (${2^{32}}\times64$). This stream is then XOR'd with the plaintext to produce the ciphertext output.
+
+\inputminted[linenos,breaklines,fontsize=\small]{c}{prototype.c}
+
+\section{Objectives}
+
+A PNG Encoder \& En/Decyptor with a commandline interface.
+
+\subsection{Codec}
+\begin{enumerate}
+    \item Parse and construct a PNG `chunk' data stream which is a structured sequence of bytes.
+    \item Implement a byte-wise CRC32 algorithm with a look-up table for data validation
+    \item Implement the basic PNG chunks
+    \begin{enumerate}
+        \item Construct the header `IHDR' chunk which contains the Width, Height, Bit depth, Colour type, Compression method, Filter method, and Interlace method.
+        \item Construct the palette `PLTE' chunk which contains the colour palette (if image is indexed)
+        \item Construct the data `IDAT' chunk which contains the encoded image data datastream.
+        \item Construct the end `IEND' chunk which indicates the end of the PNG datastream.
+    \end{enumerate}
+    \item DEFLATE compliant `compressor'
+    \item \textsc{Extension:} \textit{Actual DEFLATE compression}
+\end{enumerate}
+
+\subsection{Encryption}
+\begin{enumerate}
+    \item \textbf{Chacha20 add and rotate XOR symmetric cipher}
+    \begin{enumerate}
+        \item Block setup
+        \item Basic round
+        \item Block round
+        \item XOR function to produce a ciphertext using the pseudo-random data stream generated from the chacha20 algorithm, and a plaintext
+    \end{enumerate}
+    \item A Password-Based Key Derivation Function
+    \begin{enumerate}        
+        \item Blake2b hashing algorithm
+        \item \textsc{Extension:} \textit{Use Argon2 instead of a custom PBKDF}
+    \end{enumerate}
+    \item Hook up the encryption in the codec so that it encrypts after encoding and decrypts before decoding
+\end{enumerate}
+
+\begin{thebibliography}{9}
+\bibitem{freedompress} \url{https://freedom.press/news/over-150-filmmakers-and-photojournalists-call-major-camera-manufacturers-build-encryption-their-cameras/}
+\bibitem{canonenc} \url{http://www.canon.co.jp/imaging/osk/osk-e3/encryption/index.html}
+\bibitem{stackoverflow} \url{https://photo.stackexchange.com/questions/33902/do-any-dslrs-offer-in-camera-file-encryption}
+\end{thebibliography}
+
+\end{document}
+

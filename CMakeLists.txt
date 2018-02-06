@@ -1,10 +1,15 @@
 cmake_minimum_required (VERSION 2.8.11)
 project(png)
 
+set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+#include(UseLATEX)
+include(UseLatexMk)
 message(STATUS "CMAKE_INSTALL_LIBDIR='${CMAKE_INSTALL_LIBDIR}'")
 
 # C11
 set(CMAKE_C_STANDARD 11)
+# No GNU
+set(CMAKE_C_EXTENSIONS OFF)
 
 #set(CMAKE_C_FLAGS "")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wall -Wextra -pedantic -g")
@@ -18,9 +23,15 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 add_subdirectory(src)
 
 # build libdmt from modules
-add_executable(run_tests munit/munit.c $<TARGET_OBJECTS:png_core> $<TARGET_OBJECTS:png_test>)
+add_library(munit OBJECT munit/munit.c)
+set(CMAKE_CXX_FLAGS "-fexceptions")
+set_target_properties(munit PROPERTIES COMPILE_FLAGS "-Wno-missing-field-initializers")
+set_target_properties(png_test PROPERTIES COMPILE_FLAGS "-Wno-unused-parameter")
+add_executable(run_tests $<TARGET_OBJECTS:munit> $<TARGET_OBJECTS:png_core> $<TARGET_OBJECTS:png_test>)
 add_executable(cha2slide $<TARGET_OBJECTS:png_core> $<TARGET_OBJECTS:png_slide>)
 #add_executable(dmt $<TARGET_OBJECTS:png_core>)
+
+add_subdirectory(doc)
 
 # enable tests
 enable_testing()

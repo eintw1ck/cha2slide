@@ -17,6 +17,8 @@ set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Wall -Werror -Wextra -pedan
 
 # __APPLE_USE_RFC_3542 define if apple
 
+find_package(ZLIB REQUIRED)
+
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/munit)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
@@ -28,7 +30,9 @@ set(CMAKE_CXX_FLAGS "-fexceptions")
 set_target_properties(munit PROPERTIES COMPILE_FLAGS "-Wno-missing-field-initializers")
 set_target_properties(png_test PROPERTIES COMPILE_FLAGS "-Wno-unused-parameter")
 add_executable(run_tests $<TARGET_OBJECTS:munit> $<TARGET_OBJECTS:png_core> $<TARGET_OBJECTS:png_test>)
+target_link_libraries(run_tests ${ZLIB_LIBRARIES})
 add_executable(cha2slide $<TARGET_OBJECTS:png_core> $<TARGET_OBJECTS:png_slide>)
+target_link_libraries(cha2slide ${ZLIB_LIBRARIES})
 #add_executable(dmt $<TARGET_OBJECTS:png_core>)
 
 add_subdirectory(doc)

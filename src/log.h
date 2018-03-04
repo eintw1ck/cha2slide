@@ -4,8 +4,8 @@
 #include "chunk.h"
 
 enum {
-    LOG_INFO,
     LOG_DEBUG,
+    LOG_INFO,
     LOG_WARNING,
     LOG_ERROR,
 };

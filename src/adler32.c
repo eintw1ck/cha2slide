@@ -12,11 +12,12 @@
 
 uint32_t adler32(void *data, size_t size, uint32_t adler)
 {
+	adler = ~adler;
     uint32_t s1 = adler & 0xFFFF;
     uint32_t s2 = (adler >> 16);
     for (size_t i = 0; i < size; i++) {
         s1 = (s1 + ((char*)data)[i]) % 65521;
         s2 = (s2 + s1) % 65521;
     }
-    return (s2 << 16) + s1;
+    return ~((s2 << 16) + s1);
 }

@@ -5,6 +5,58 @@
 #include "zlib.h"
 #include "crc32.h"
 
+/**
+ * Wrapper function for fwrite to enable on-write calculation of CRCs and bswapping of
+ * 16, 32 and 64 bit values.
+ */
+static size_t fwrite_crc(const void *data, size_t size, FILE *file, uint32_t *crc, int bswap) {
+    uint16_t u16;
+    uint32_t u32;
+    uint64_t u64;
+
+    if (!data || !size || !file)
+        return 0;
+
+    if (bswap) {
+        switch (size) {
+        case 1:
+            break;
+        case 2:
+            u16 = bswap16(*(uint16_t*)data);
+            data = &u16;
+            break;
+        case 4:
+            u32 = bswap32(*(uint32_t*)data);
+            data = &u32;
+            break;
+        case 8:
+            u64 = bswap64(*(uint64_t*)data);
+            data = &u64;
+            break;
+        default:
+            fprintf(stderr, "\x1b[31mENOSYS: unsupported bswap-ing %zu bytes.\x1b[0m\n", size);
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    if (crc)
+        *crc = crc32_(*crc, data, size);
+
+    return fwrite(data, 1, size, file);
+}
+
+#define BEGIN_CHUNK(file, type) \
+    int begin = ftell(file); \
+    uint32_t crc = DEFAULT_CRC32; \
+    fseek(file, 4, SEEK_CUR)
+
+#define END_CHUNK(size) \
+    int end = ftell(file); \
+    fseek(file, begin, SEEK_SET); \
+    fwrite_crc(&size, 4, file, 0, 1); \
+    fseek(file, end, SEEK_SET); \
+    fwrite_crc(&crc, 4, file, 0, 1)
+
 int png_new_ihdr(png_ihdr **chunk, uint32_t width, uint32_t height, uint8_t bit_depth, uint8_t color_type, uint8_t interlace_method)
 {
     if (!(*chunk)) (*chunk) = malloc(sizeof(png_ihdr));
@@ -33,6 +85,7 @@ int png_new_ihdr(png_ihdr **chunk, uint32_t width, uint32_t height, uint8_t bit_
     }
     (*chunk)->bit_depth = bit_depth;
     (*chunk)->color_type = color_type;
+    (*chunk)->filter_method = 0;
     if (interlace_method & 0xFFFE)
         return 6; /* interlace_method is not 1 or 0 */
     (*chunk)->interlace_method = interlace_method;
@@ -51,20 +104,6 @@ int png_new_plte(png_plte **chunk, uint8_t **palette, uint8_t palette_size)
     return 0;
 }
 
-int png_new_idat(png_idat **chunk, uint8_t *data, uint32_t data_size, uint32_t width)
-{
-    if (!(*chunk)) (*chunk) = malloc(sizeof(png_idat));
-    (*chunk)->type = PNG_IDAT;
-    
-    (*chunk)->zlib_cmf = zlib_cmf_method_deflate | zlib_cinfo(0);
-    (*chunk)->zlib_flag = zlib_fcheck(((uint16_t)(*chunk)->zlib_cmf << 8) + zlib_flevel_default) & 0xFF;
-    (*chunk)->deflate_flag = 0;
-
-    png_set_idat_data((*chunk), data, data_size, width);
-
-    return 0;
-}
-
 int png_set_idat_data(png_idat *chunk, uint8_t *data, uint32_t data_size, uint32_t width) {
     uint32_t height = data_size / (width ? width : 1);
 
@@ -77,6 +116,20 @@ int png_set_idat_data(png_idat *chunk, uint8_t *data, uint32_t data_size, uint32
         chunk->data[i*(width+1)] = 0;
         memcpy(&chunk->data[1+i*(width+1)], &data[i*width], width);
     }
+    return 0;
+}
+
+int png_new_idat(png_idat **chunk, uint8_t *data, uint32_t data_size, uint32_t width)
+{
+    if (!(*chunk)) (*chunk) = malloc(sizeof(png_idat));
+    (*chunk)->type = PNG_IDAT;
+
+    (*chunk)->zlib_cmf = zlib_cmf_method_deflate | zlib_cinfo(0);
+    (*chunk)->zlib_flag = zlib_fcheck(((uint16_t)(*chunk)->zlib_cmf << 8) + zlib_flevel_default) & 0xFF;
+    (*chunk)->deflate_flag = 1 << 2;
+
+    png_set_idat_data((*chunk), data, data_size, width);
+
     return 0;
 }
 
@@ -97,17 +150,19 @@ int png_write_signature(FILE *file)
 
 int png_write_ihdr(FILE *file, png_ihdr *chunk)
 {
+    /* Chunk sizes do not include the type, so 4 + 4 + 1 + 1 + 1 + 1 + 1 = 13 */
     uint32_t size = 13;
 
     BEGIN_CHUNK(file, &chunk->type);
-    WRITE_CHUNK_BSWAP(&chunk->type, 32);
-    WRITE_CHUNK_BSWAP(&chunk->width, 32);
-    WRITE_CHUNK_BSWAP(&chunk->height, 32);
-    WRITE_CHUNK_BSWAP(&chunk->bit_depth, 8);
-    WRITE_CHUNK_BSWAP(&chunk->color_type, 8);
-    WRITE_CHUNK_BSWAP(&chunk->compression_method, 8);
-    WRITE_CHUNK_BSWAP(&chunk->filter_method, 8);
-    WRITE_CHUNK_BSWAP(&chunk->interlace_method, 8);
+    fwrite_crc(&chunk->type, 4, file, &crc, 1);
+    fwrite_crc(&chunk->width, 4, file, &crc, 1);
+    fwrite_crc(&chunk->height, 4, file, &crc, 1);
+    fwrite_crc(&chunk->bit_depth, 1, file, &crc, 0);
+    fwrite_crc(&chunk->color_type, 1, file, &crc, 0);
+    fwrite_crc(&chunk->compression_method, 1, file, &crc, 0);
+    fwrite_crc(&chunk->filter_method, 1, file, &crc, 0);
+    fwrite_crc(&chunk->interlace_method, 1, file, &crc, 0);
+
     END_CHUNK(size);
 
     return 0;
@@ -119,7 +174,7 @@ int png_write_plte(FILE *file, png_plte *chunk)
 
     if (chunk->palette_size) {
         for (int i = 0; i < chunk->palette_size/3; i++) {
-            WRITE_CHUNK_CRC(chunk->palette[i], 3);
+            fwrite_crc(chunk->palette[i], 3, file, &crc, 0);
         }
     }
 
@@ -130,65 +185,73 @@ int png_write_plte(FILE *file, png_plte *chunk)
 
 int png_write_idat(FILE *file, png_idat *chunk)
 {
-    uint32_t size = 2;
-    uint32_t adler = DEFAULT_ADLER32;
+#define CHUNK 16384
+    uint32_t pos = 0;
+    uint32_t remaining = chunk->data_size;
+    uint8_t out[CHUNK];
+    z_stream strm;
+    /* Use standard memory allocation functions, this could be hooked up to a different
+     * system allocator for embedded systems.
+     */
+    strm.zalloc = Z_NULL;
+    strm.zfree = Z_NULL;
+    strm.opaque = Z_NULL;
 
     BEGIN_CHUNK(file, &chunk->type);
 
-    WRITE_CHUNK_BSWAP(&chunk->type, 32);
-    WRITE_CHUNK_BSWAP(&chunk->zlib_cmf, 8);
-    WRITE_CHUNK_BSWAP(&chunk->zlib_flag, 8);
+    fwrite_crc(&chunk->type, 4, file, &crc, 1);
+
+    /* should use Z_FILTERED as we are doing PNG, but dont actually do filtering so it doesnt do anything */
+    int strategy = Z_FILTERED;
+    int level    = Z_DEFAULT_COMPRESSION;
 
     switch (chunk->deflate_flag) {
     case 0: {
-        uint32_t remaining = chunk->data_size;
-        uint32_t pos = 0;
-        uint8_t dflag = chunk->deflate_flag;
-        while (remaining) {
-            uint16_t len;
-            uint16_t nlen;
-    
-            if (remaining > 0xFFFF) {
-                remaining -= 0xFFFF;
-                len = 0xFFFF;
-            } else {
-                len = remaining;
-                remaining = 0;
-                dflag |= 0x1; /* last block */
-            }
-            nlen = ~len;
-
-            WRITE_CHUNK_BSWAP(&dflag, 8);
-            adler = adler32(&dflag, 1, adler);
-            WRITE_CHUNK_CRC(&len, 2);
-            adler = adler32(&chunk->data_size, 2, adler);
-            WRITE_CHUNK_CRC(&nlen, 2);
-            adler = adler32(&nlen, 2, adler);
-
-            WRITE_CHUNK_CRC(&chunk->data[pos], len);
-            size += len + 5;
-            adler = adler32(&chunk->data[pos], len, adler);
-            pos += len;
-        }
+        level = Z_NO_COMPRESSION;
         break;
     }
     case 1 << 1: {
-        // TODO: implement compression with fixed Huffman codes
+        strategy = Z_FIXED;
+        break;
     }
-    case 2 << 1: {
-        // TODO: implement compression with dynamic Huffman codes
+    case 1 << 2:
+    default: {
+        /* default options */
+        break;
     }
-    default:
-        fprintf(stderr, "\x1b[31mENOSYS: compression mode for deflate not supported.\x1b[0m\n");
+    }
+
+    if (deflateInit2(&strm, level, Z_DEFLATED, 15, 8, strategy) != Z_OK) {
+        fprintf(stderr, "\x1b[31mRIP: %s:%d.\x1b[0m\n", __FILE__, __LINE__);
         exit(EXIT_FAILURE);
     }
-    /* TODO: work out why adding in adler32 messes literally everything up (even when changing block size) */
-    /*
-    WRITE_CHUNK_CRC(&adler, 4);
-    size+=4;
-    */
+    /* while there is data left */
+    while (remaining) {
+        int flush;
+        /* take a chunk of data */
+        if (remaining > CHUNK) {
+            strm.avail_in = CHUNK;
+            flush = Z_NO_FLUSH;
+        } else {
+            strm.avail_in = remaining;
+            flush = Z_FINISH;
+        }
+        remaining -= strm.avail_in;
 
-    END_CHUNK(size);
+        strm.next_in = &chunk->data[pos];
+        pos += strm.avail_in;
+
+        strm.avail_out = CHUNK;
+        strm.next_out = out;
+        if (deflate(&strm, flush) == Z_STREAM_ERROR) {
+            fprintf(stderr, "\x1b[31mRIP: %s:%d.\x1b[0m\n", __FILE__, __LINE__);
+            exit(EXIT_FAILURE);
+        }
+        fwrite_crc(out, CHUNK - strm.avail_out, file, &crc, 0);
+    }
+    deflateEnd(&strm);
+
+    END_CHUNK(strm.total_out);
     return 0;
 }
 

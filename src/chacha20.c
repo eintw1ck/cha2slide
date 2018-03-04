@@ -74,7 +74,9 @@ int chacha20_random(uint8_t *out, size_t bytes)
     if (!out && !bytes)
         return 1;
 
-    /* Period of chacha20 with a 32bit block counter only 256 GiB, could probably call recursively for a near infinite period but just error out instead. */
+    /* Period of chacha20 with a 32bit block counter only 256 GiB, could probably call recursively
+     * for a near infinite period but just error out instead.
+     */
     if (bytes > 0xFFFFFFFF*0x40)
         return 2;
 

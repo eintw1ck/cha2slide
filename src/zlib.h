@@ -3,7 +3,8 @@
 
 #include <stdint.h>
 #include <math.h>
-#include "adler32.h"
+#include <zlib.h>
+//#include "adler32.h"
 
 /* Compression Method and Compression Flags
  * 

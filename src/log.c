@@ -4,20 +4,21 @@
 #include <stdarg.h>
 
 char *LOG_LEVEL[] = {
-    "#", /* info */
     "?", /* debug info */
+    "#", /* info */
     "*", /* warning */
     "!", /* error */
 };
 
 char *LOG_LEVEL_COLOR[] = {
-    "\x1B[32m", /* info */
     "\x1B[36m", /* debug info */
+    "\x1B[32m", /* info */
     "\x1B[33m", /* warning */
     "\x1B[31m", /* error */
 };
 
 FILE *LOG_FILE = NULL;
+int LOG_LEVEL_SUPPRESS = 0;
 
 void pprintf(int level, const char* format, ...)
 {
@@ -25,6 +26,9 @@ void pprintf(int level, const char* format, ...)
 
     if (level < 0 || level > 3)
         level = 0;
+
+    if (level < LOG_LEVEL_SUPPRESS)
+        return;
 
     if (!LOG_FILE)
         LOG_FILE = stderr;

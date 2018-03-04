@@ -26,7 +26,7 @@ cha2slide decrypt out.enc alt.png test
 
 static void header()
 {
-    fprintf(stderr, "\x1B[4mChaChaSlide\x1B[0m             \x1B[7mver. %d.%d.%d\x1B[0m\n    \x1B[1mTake it back now y'all.\x1B[0m\n", CHA2SLIDE_VER_MAJOR, CHA2SLIDE_VER_MINOR, CHA2SLIDE_VER_PATCH);
+    fprintf(stderr, "\x1B[4mChaChaSlide\x1B[0m \x1B[7mver. %d.%d.%d\x1B[0m\n\t\x1B[1mTake it back now y'all.\x1B[0m\n", CHA2SLIDE_VER_MAJOR, CHA2SLIDE_VER_MINOR, CHA2SLIDE_VER_PATCH);
 }
 
 static void footer()
@@ -56,11 +56,11 @@ static void usage()
     fprintf(stderr,
         "Usage: cha2slide <command> <input-file> <output-file> <command-dependent-argument>\n"
         "Commands:\n"
-        "    encrypt\n"
-        "    decrypt\n"
-        "        these take a password argument\n"
-        "    encode\n"
-        "        this takes a pixel width argument\n"
+        "\tencrypt\n"
+        "\tdecrypt\n"
+        "\t\tthese take a password argument\n"
+        "\tencode\n"
+        "\t\tthis takes a pixel width argument\n"
     );
 }
 
@@ -181,7 +181,7 @@ int main(int argc, char *argv[argc])
     }
 
     if(access(argv[2], F_OK) != -1) {
-        pprintf(LOG_INFO, "Input file    \x1B[7m%s\x1B[0m", argv[2]);
+        pprintf(LOG_INFO, "Input file \x1B[7m%s\x1B[0m", argv[2]);
         input = fopen(argv[2], "rb");
     } else {
         pprintf(LOG_ERROR, "Input file not found.");
@@ -191,17 +191,17 @@ int main(int argc, char *argv[argc])
     if(access(argv[3], F_OK) != -1) {
         pprintf(LOG_WARNING, "Output file exists, overwriting.");
     }
-    pprintf(LOG_INFO, "Output file    \x1B[7m%s\x1B[0m", argv[3]);
+    pprintf(LOG_INFO, "Output file \x1B[7m%s\x1B[0m", argv[3]);
     output = fopen(argv[3], "wb");
 
     if (!strcmp(argv[1], "encode")) {
-        pprintf(LOG_INFO, "Mode        \x1B[7mencode\x1B[0m");
+        pprintf(LOG_INFO, "Mode \x1B[7mencode\x1B[0m");
         encode(input, output, parseuint(argv[4]));
     } else if (!strcmp(argv[1], "encrypt")) {
-        pprintf(LOG_INFO, "Mode        \x1B[7mencrypt\x1B[0m");
+        pprintf(LOG_INFO, "Mode \x1B[7mencrypt\x1B[0m");
         crypto(input, output, 1, argv[4]);
     } else if (!strcmp(argv[1], "decrypt")) {
-        pprintf(LOG_INFO, "Mode        \x1B[7mdecrypt\x1B[0m");
+        pprintf(LOG_INFO, "Mode \x1B[7mdecrypt\x1B[0m");
         crypto(input, output, 0, argv[4]);
     }
 

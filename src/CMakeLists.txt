@@ -1,5 +1,5 @@
 add_library(png_core OBJECT
-    adler32.c
+#    adler32.c
     blake2b.c
     crc32.c
     chacha20.c

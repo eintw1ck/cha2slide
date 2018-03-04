@@ -20,3 +20,4 @@ inline uint64_t bswap64(uint64_t x)
 {
     return (((uint64_t)(bswap32((uint32_t)(x))) << 32) | (uint64_t)(bswap32((uint32_t)(x >> 32))));
 }
+

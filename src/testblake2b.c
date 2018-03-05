@@ -1,4 +1,4 @@
-#include "test_blake2b.h"
+#include "testblake2b.h"
 
 MunitResult test_blake2b(const MunitParameter params[], void* user_data)
 {

@@ -1,4 +1,4 @@
-#include "test_crc32.h"
+#include "testcrc32.h"
 #include <zlib.h>
 
 MunitResult test_crc32_gen_lut(const MunitParameter params[], void* user_data)

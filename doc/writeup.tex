@@ -1,5 +1,6 @@
-\documentclass{article}
+\documentclass{report}
 
+\usepackage[toc,page]{appendix}
 \usepackage{xcolor}
 \usepackage{minted}
 \usepackage{url}
@@ -12,49 +13,50 @@
 
 \maketitle
 
-\section{Introduction}
+\tableofcontents
+\clearpage
 
-Cameras have for a long time had poor security, consisting of either no encryption available at all, or extremely weak encryption--and in more recent developments, they have included sometimes even web-servers for sharing images across a network, avoiding the need to use a cable to transfer photos off the device, or old Linux-based operating systems. In this paper we preset an approach to a PNG encoder with an encryption extension specifically aimed at running on DSLR firmware. The inclusion of the encoder into actual firmware is not written or discussed for simplicity's sake, though it is designed with this in mind.
+\chapter{Analysis}
 
-Encryption in Cameras for both video and images have been a basic feature requested by many journalists\cite{freedompress}. In the past, the only Camera manufacturer who has tried to implement slightly feasible encryption was Canon, in their EOS-1Ds Mark III, and EOS-1D Mark III\cite{canonenc}--however it was poorly executed and could be broken by dumping encryption keys from the firmware (which were unique but static)\cite{stackoverflow}.
+\section{Background}
+Cameras have for a long time had poor security, consisting of either no encryption available at all, or extremely weak encryption--and in more recent developments, they have included sometimes even web-servers for sharing images across a network, avoiding the need to use a cable to transfer photos off the device, or old Linux-based operating systems. In this paper we present an approach to a PNG encoder with an encryption extension specifically aimed at running on DSLR firmware. The inclusion of the encoder into actual firmware is not written or discussed for simplicity's sake, though it is designed with this in mind.
+In the past, the only Camera manufacturer who has tried to implement slightly feasible encryption was Canon, in their EOS-1Ds Mark III, and EOS-1D Mark III\cite{canonenc}--however it was poorly executed and could be broken by dumping encryption keys from the firmware (which were unique but static)\cite{stackoverflow}.
 
-\section{Design}
+\section{Statement of Problem}
 
-\subsection{Prototype}
+Encryption in Cameras for both video and images have been a basic feature requested by many journalists\cite{freedompress}. 
 
-For the `prototype', I implemented the chacha20 symmetric cipher. A benefit of using a symmetric cipher is to preserve storage space on the camera. Asymmetric ciphers would generally increase the size of the ciphertext compared to the plaintext. In practice, the key would be randomly generated, and then added to an asymmetrically encrypted database on the camera. The decryption key for this database would not be stored on the camera. However, for simplicity's sake, this key generation will not be applied. Due to the limited hardware capabilities on the target hardware and for speed, the codec will be written in the low-level language, C.
+\section{Target Users}
 
-The encryption is based on an add and rotate cipher which generates a pseudo-random stream of data in 64 byte chunks up to a maximum of 256 GiB due to the 32 bit block counter (${2^{32}}\times64$). This stream is then XOR'd with the plaintext to produce the ciphertext output.
-
-\inputminted[linenos,breaklines,fontsize=\small]{c}{prototype.c}
+Journalists.
 
 \section{Objectives}
 
-A PNG Encoder \& En/Decyptor with a commandline interface.
+A PNG Encoder with En/Decryption and a command-line interface.
 
 \subsection{Codec}
 \begin{enumerate}
     \item Parse and construct a PNG `chunk' data stream which is a structured sequence of bytes.
-    \item Implement a byte-wise CRC32 algorithm with a look-up table for data validation
+    \item Implement a byte-wise CRC32 algorithm \cite{crc32} with a look-up table for data validation
     \item Implement the basic PNG chunks
     \begin{enumerate}
         \item Construct the header `IHDR' chunk which contains the Width, Height, Bit depth, Colour type, Compression method, Filter method, and Interlace method.
-        \item Construct the palette `PLTE' chunk which contains the colour palette (if image is indexed)
-        \item Construct the data `IDAT' chunk which contains the encoded image data datastream.
-        \item Construct the end `IEND' chunk which indicates the end of the PNG datastream.
+%        \item Construct the palette `PLTE' chunk which contains the colour palette (if image is indexed)
+        \item Construct the data `IDAT' chunk which contains the encoded image data data-stream.
+        \item Construct the end `IEND' chunk which indicates the end of the PNG data-stream.
     \end{enumerate}
-    \item DEFLATE compliant `compressor'
+    \item DEFLATE\cite{deflate} compliant `compressor'
     \item \textsc{Extension:} \textit{Actual DEFLATE compression}
 \end{enumerate}
 
 \subsection{Encryption}
 \begin{enumerate}
-    \item \textbf{Chacha20 add and rotate XOR symmetric cipher}
+    \item \textbf{ChaCha20 add and rotate XOR symmetric cipher}
     \begin{enumerate}
         \item Block setup
         \item Basic round
         \item Block round
-        \item XOR function to produce a ciphertext using the pseudo-random data stream generated from the chacha20 algorithm, and a plaintext
+        \item XOR function to produce a cipher-text using the pseudo-random data stream generated from the ChaCha20 algorithm, and a plain-text
     \end{enumerate}
     \item A Password-Based Key Derivation Function
     \begin{enumerate}        
@@ -64,11 +66,110 @@ A PNG Encoder \& En/Decyptor with a commandline interface.
     \item Hook up the encryption in the codec so that it encrypts after encoding and decrypts before decoding
 \end{enumerate}
 
+\section{Modelling}
+
+\chapter{Design}
+
+\section{High-level Overview}
+
+The program is run from a command-line and given four arguments. The first indicates the `command' to run, the commands available are `encode', `encrypt', and `decrypt', they should set certain flags in the program to execute the specified routine on the second and third arguments which are the input and output files respectively. The fourth input argument is dependent on the the command where the encoder receives a `width' argument denoting the pixel width of the input file, and a `key' argument which shall be supplied to the cryptography core if the user enters an encryption command.
+The input file of the `encode' command should be a file in the format of RGB24 (interlaced red/green/blue values of 8-bit depth).
+
+\subsection{Encode}
+
+An in-memory representation of the basic required PNG chunks should be constructed: IHDR, IDAT, IEND. Starting with the IHDR, a height should be calculated from the size of the input validating that the size is a multiple of three (to ensure it could be parsed as RGB24 or it should throw an error). The bit-depth, colour type, compression method, filter method and interlace method will be statically defined the former two could be passed in from the input data, but for simplicity only 8-bit depth and true-colour are supported. The compression method is defined statically as DEFLATE with dynamic Huffman codes, but other modes should be supported in code. After constructing the PNG chunks they should be written to the output file.
+
+\subsection{En/Decryption}
+
+In encryption, a nonce and salt should be randomly generated, and the ChaCha20 key should be derived using the blake2b hashing algorithm from the user-supplied key and the salt. The salt and nonce should be written to the output file. The ChaCha20 state should then be setup using the key and the input file should be read, encrypted, and written to the output file in chunks.
+Decryption should reverse this process by reading the nonce and salt from the input file, generating the ChaCha20 key using the input key and the salt, and decrypting the data.
+
+\section{Algorithms}
+
+The program will include three main algorithms, CRC32 for checking of data-integrity within PNG, ChaCha20 as the symmetric encryption cipher, and Blake2b to hash user passkeys.
+
+\subsection{CRC32}
+
+The CRC32 algorithm is the 32-bit version of the cyclic redundancy check which uses the $x^{32}+x^{26}+x^{23}+x^{22}+x^{16}+x^{12}+x^{11}+x^{10}+x^8+x^7+x^5+x^4+x^2+x+1$ polynomial.
+
+\subsection{ChaCha20}
+
+ChaCha20 is a revised version of the Salsa20 algorithm \cite{salsa20} by Daniel J. Bernstein. It is a stream cipher which generates a pseudo-random stream using add-rotate-xor operations. 
+
+\subsection{BLAKE2b}
+
+BLAKE2b is an improved version of the BLAKE-512 hashing algorithm which outputs 8 to 512 bits. The underlying algorithm makes use of a modified ChaCha20 which truncates the state and and extra XOR of a permuted input block before each ChaCha round.
+
+\section{Choice of Programming languages}
+
+Due to the limited hardware capabilities on the target hardware and for speed, I have chosen the low-level language, C. It allows you to write concise code while having full control over the memory usage which is important for programs which desire performance. Being a widely used language, most embedded devices will have at-least a C compiler targeted for their specific architecture.
+
+\section{Data Structure (In-Memory)}
+
+\section{Data Structure (Files)}
+
+\section{Prototype}
+
+For the `prototype', I implemented the ChaCha20 symmetric cipher. A benefit of using a symmetric cipher is to preserve storage space on the camera. Asymmetric ciphers would generally increase the size of the cipher-text compared to the plain-text. In practice, the key would be randomly generated, and then added to an asymmetrically encrypted database on the camera. The decryption key for this database would not be stored on the camera. However, for simplicity's sake, this key generation will not be applied.
+
+The encryption is based on an add and rotate cipher which generates a pseudo-random stream of data in 64 byte chunks up to a maximum of 256 GiB due to the 32 bit block counter (${2^{32}}\times64$). This stream is then XOR'd with the plain-text to produce the cipher-text output.
+
+See \ref{appendix:a}
+
+\chapter{Technical Solution}
+
+\chapter{Testing}
+
+Ask about how to show this effectively.
+
+\chapter{Evaluation}
+
+\section{Overall effectiveness of System}
+
+\section{Objectives}
+
+\section{End-user Feedback}
+
+\section{System Improvements}
+
 \begin{thebibliography}{9}
 \bibitem{freedompress} \url{https://freedom.press/news/over-150-filmmakers-and-photojournalists-call-major-camera-manufacturers-build-encryption-their-cameras/}
 \bibitem{canonenc} \url{http://www.canon.co.jp/imaging/osk/osk-e3/encryption/index.html}
 \bibitem{stackoverflow} \url{https://photo.stackexchange.com/questions/33902/do-any-dslrs-offer-in-camera-file-encryption}
+\bibitem{deflate} \url{https://tools.ietf.org/html/rfc1951}
+\bibitem{crc32} \url{https://www.w3.org/TR/PNG/#5CRC-algorithm}
+\bibitem{salsa20} \url{http://www.ecrypt.eu.org/stream/salsa20pf.html}
 \end{thebibliography}
+\clearpage
+
+\appendix
+\chapter{Prototype}
+\label{appendix:a}
+\inputminted[linenos,breaklines,fontsize=\small]{c}{prototype.c}
+\clearpage
+
+\chapter{Technical Solution}
+\label{appendix:b}
+\newcommand{\mintedch}[1]{
+    \section{#1.c}
+    \inputminted[linenos,breaklines,fontsize=\small]{c}{../src/#1.c}
+    \section{#1.h}
+    \inputminted[linenos,breaklines,fontsize=\small]{c}{../src/#1.h}
+}
+
+\section{cha2slide.c}
+\inputminted[linenos,breaklines,fontsize=\small]{c}{../src/cha2slide.c}
+\mintedch{blake2b}
+\mintedch{crc32}
+\mintedch{chacha20}
+\mintedch{chunk}
+\mintedch{log}
+\mintedch{test}
+\mintedch{testblake2b}
+\mintedch{testchacha20}
+\mintedch{testchunk}
+\mintedch{testcrc32}
+\clearpage
 
 \end{document}
 

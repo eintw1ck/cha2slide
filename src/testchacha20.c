@@ -1,4 +1,4 @@
-#include "test_chacha20.h"
+#include "testchacha20.h"
 
 #define check_states(a, b) for (int i = 0; i < 16; i++) if (a[i] != b[i]) goto failed;
 

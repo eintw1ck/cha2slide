@@ -1,4 +1,4 @@
-#include "test_chunk.h"
+#include "testchunk.h"
 
 static uint8_t pixel2x2[12] = {
     0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00,

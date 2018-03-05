@@ -2,10 +2,10 @@
 #define __TEST_H
 
 #include <stdlib.h>
-#include "test_blake2b.h"
-#include "test_chacha20.h"
-#include "test_chunk.h"
-#include "test_crc32.h"
+#include "testblake2b.h"
+#include "testchacha20.h"
+#include "testchunk.h"
+#include "testcrc32.h"
 
 static MunitSuite test_suites[] = {
     { (char*) "blake2b/", blake2b_tests, NULL, 0, MUNIT_SUITE_OPTION_NONE },

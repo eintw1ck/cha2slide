@@ -3,7 +3,6 @@
 
 #include "munit.h"
 #include "chunk.h"
-#include "zlib.h"
 
 MunitResult test_write_signature (const MunitParameter params[], void* user_data);
 MunitResult test_write_ihdr_chunk(const MunitParameter params[], void* user_data);

@@ -7,7 +7,7 @@
 typedef struct {
     uint64_t state[8];
     uint64_t hashed[2];
-   uint8_t buffer[128];
+    uint8_t buffer[128];
     size_t blen;
     size_t hlen;
 } blake2b_ctx;

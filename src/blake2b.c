@@ -1,5 +1,4 @@
 #include "blake2b.h"
-#include "macro.h"
 
 static inline uint64_t rotr64(uint64_t x, uint8_t n)
 {

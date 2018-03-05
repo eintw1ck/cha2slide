@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include "macro.h"
+#define DWORD(a,b,c,d) (((a & 0xFF) << 24) | ((b & 0xFF) << 16) | ((c & 0xFF) << 8) | (d & 0xFF))
 
 #define PNG_IHDR DWORD('I','H','D','R')
 #define PNG_PLTE DWORD('P','L','T','E')

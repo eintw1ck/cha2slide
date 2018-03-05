@@ -1,9 +1,26 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <zlib.h>
+
 #include "chunk.h"
-#include "zlib.h"
 #include "crc32.h"
+
+static inline uint16_t bswap16(uint16_t x)
+{
+    return (((x & 0x00FF) << 8) | ((x & 0xFF00) >> 8));
+}
+
+static inline uint32_t bswap32(uint32_t x)
+{
+    return (((uint32_t)(bswap16((uint16_t)(x))) << 16) | (uint32_t)(bswap16((uint16_t)(x >> 16))));
+}
+
+
+static inline uint64_t bswap64(uint64_t x)
+{
+    return (((uint64_t)(bswap32((uint32_t)(x))) << 32) | (uint64_t)(bswap32((uint32_t)(x >> 32))));
+}
 
 /**
  * Wrapper function for fwrite to enable on-write calculation of CRCs and bswapping of
@@ -144,7 +161,7 @@ int png_new_iend(png_iend **chunk)
 
 int png_write_signature(FILE *file)
 {
-    uint8_t signature[8] = { 0x89, BYTE('P'), BYTE('N'), BYTE('G'), 0x0D, 0x0A, 0x1A, 0x0A };
+    uint8_t signature[8] = { 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A };
 
     return !(fwrite(signature, 8, 1, file) == 1);
 }
@@ -258,7 +275,7 @@ int png_write_idat(FILE *file, png_idat *chunk)
 
 int png_write_iend(FILE *file, png_iend *chunk)
 {
-    uint8_t iend[12] = { 0x00, 0x00, 0x00, 0x00, BYTE('I'), BYTE('E'), BYTE('N'), BYTE('D'), 0xAE, 0x42, 0x60, 0x82 };
+    uint8_t iend[12] = { 0x00, 0x00, 0x00, 0x00, 'I', 'E', 'N', 'D', 0xAE, 0x42, 0x60, 0x82 };
     (void)(chunk);
     return !(fwrite(iend, 12, 1, file) == 1);
 }

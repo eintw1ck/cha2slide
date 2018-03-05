@@ -1,9 +1,6 @@
-#include "crc32.h"
-#include "macro.h"
-
-#include "munit.h"
-
 #include <pthread.h>
+
+#include "crc32.h"
 
 /**
  * Static look-up table enabling byte-wise computation of CRC32 values.
@@ -70,6 +67,6 @@ uint32_t crc32_(uint32_t crc, const void* data, size_t size)
      */
     pthread_once(&crc32_lut_gen, crc32_gen_lut);
     crc = ~crc;
-    while (size--) crc = (crc >> 8) ^ crc32_lut[(BYTE(crc)) ^ *(uint8_t*)data++];
+    while (size--) crc = (crc >> 8) ^ crc32_lut[(crc & 0xFF) ^ *(uint8_t*)data++];
     return ~crc;
 }

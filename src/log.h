@@ -8,6 +8,7 @@ enum {
     LOG_INFO,
     LOG_WARNING,
     LOG_ERROR,
+    LOG_FATAL,
 };
 
 void pprintf(int level, const char *format, ...);

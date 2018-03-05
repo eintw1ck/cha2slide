@@ -9,6 +9,7 @@ char *LOG_LEVEL[] = {
     "#", /* info */
     "*", /* warning */
     "!", /* error */
+    "@", /* fatal */
 };
 
 char *LOG_LEVEL_COLOR[] = {
@@ -16,6 +17,7 @@ char *LOG_LEVEL_COLOR[] = {
     "\x1B[32m", /* info */
     "\x1B[33m", /* warning */
     "\x1B[31m", /* error */
+    "\x1B[7m",  /* fatal */
 };
 
 FILE *LOG_FILE = NULL;
@@ -25,7 +27,7 @@ void pprintf(int level, const char *format, ...)
 {
     va_list args;
 
-    if (level < 0 || level > 3)
+    if (level < 0 || level > 4)
         level = 0;
 
     if (level < LOG_LEVEL_SUPPRESS)
@@ -40,7 +42,7 @@ void pprintf(int level, const char *format, ...)
     va_end(args);
     fprintf(LOG_FILE, "\n");
 
-    if (level == LOG_ERROR)
+    if (level == LOG_FATAL)
         raise(SIGABRT);
 }
 

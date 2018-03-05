@@ -6,6 +6,9 @@
 \usepackage{url}
 \def\UrlBreaks{\do\/\do-}
 
+\renewcommand{\theFancyVerbLine}{\sffamily\color{blue!50!white}{\footnotesize\arabic{FancyVerbLine}}}
+\setminted[c]{fontsize=\footnotesize,baselinestretch=0.8,breaksymbol=,breakautoindent=false,breakindent=0.0pt}
+
 \begin{document}
 
 \title{ChaChaSlide}
@@ -20,6 +23,7 @@
 
 \section{Background}
 Cameras have for a long time had poor security, consisting of either no encryption available at all, or extremely weak encryption--and in more recent developments, they have included sometimes even web-servers for sharing images across a network, avoiding the need to use a cable to transfer photos off the device, or old Linux-based operating systems. In this paper we present an approach to a PNG encoder with an encryption extension specifically aimed at running on DSLR firmware. The inclusion of the encoder into actual firmware is not written or discussed for simplicity's sake, though it is designed with this in mind.
+
 In the past, the only Camera manufacturer who has tried to implement slightly feasible encryption was Canon, in their EOS-1Ds Mark III, and EOS-1D Mark III\cite{canonenc}--however it was poorly executed and could be broken by dumping encryption keys from the firmware (which were unique but static)\cite{stackoverflow}.
 
 \section{Statement of Problem}
@@ -60,7 +64,7 @@ A PNG Encoder with En/Decryption and a command-line interface.
     \end{enumerate}
     \item A Password-Based Key Derivation Function
     \begin{enumerate}        
-        \item Blake2b hashing algorithm
+        \item BLAKE2b hashing algorithm
         \item \textsc{Extension:} \textit{Use Argon2 instead of a custom PBKDF}
     \end{enumerate}
     \item Hook up the encryption in the codec so that it encrypts after encoding and decrypts before decoding
@@ -81,20 +85,20 @@ An in-memory representation of the basic required PNG chunks should be construct
 
 \subsection{En/Decryption}
 
-In encryption, a nonce and salt should be randomly generated, and the ChaCha20 key should be derived using the blake2b hashing algorithm from the user-supplied key and the salt. The salt and nonce should be written to the output file. The ChaCha20 state should then be setup using the key and the input file should be read, encrypted, and written to the output file in chunks.
+In encryption, a nonce and salt should be randomly generated, and the ChaCha20 key should be derived using the BLAKE2b hashing algorithm from the user-supplied key and the salt. The salt and nonce should be written to the output file. The ChaCha20 state should then be setup using the key and the input file should be read, encrypted, and written to the output file in chunks.
 Decryption should reverse this process by reading the nonce and salt from the input file, generating the ChaCha20 key using the input key and the salt, and decrypting the data.
 
 \section{Algorithms}
 
-The program will include three main algorithms, CRC32 for checking of data-integrity within PNG, ChaCha20 as the symmetric encryption cipher, and Blake2b to hash user passkeys.
+The program will include three main algorithms, CRC32 for checking of data-integrity within PNG, ChaCha20 as the symmetric encryption cipher, and BLAKE2b to hash user passkeys.
 
 \subsection{CRC32}
 
-The CRC32 algorithm is the 32-bit version of the cyclic redundancy check which uses the $x^{32}+x^{26}+x^{23}+x^{22}+x^{16}+x^{12}+x^{11}+x^{10}+x^8+x^7+x^5+x^4+x^2+x+1$ polynomial.
+The CRC32 algorithm is the 32-bit version of the cyclic redundancy check which uses the $x^{32}+x^{26}+x^{23}+x^{22}+x^{16}+x^{12}+x^{11}+x^{10}+x^8+x^7+x^5+x^4+x^2+x+1$ polynomial. It works by bitwise XOR-ing the polynomial with each bit-index of the input data, with null bit padding at the end of the data such that the most significant bit of the polynomial was XOR'd with the most significant bit of the input data and the least significant bit. 
 
 \subsection{ChaCha20}
 
-ChaCha20 is a revised version of the Salsa20 algorithm \cite{salsa20} by Daniel J. Bernstein. It is a stream cipher which generates a pseudo-random stream using add-rotate-xor operations. 
+ChaCha20 is a revised version of the Salsa20 algorithm \cite{salsa20} by Daniel J. Bernstein. It is a stream cipher which generates a pseudo-random stream in blocks using add-rotate-xor operations. 
 
 \subsection{BLAKE2b}
 
@@ -108,15 +112,91 @@ Due to the limited hardware capabilities on the target hardware and for speed, I
 
 \section{Data Structure (Files)}
 
+\subsection{Encrypted PNG}
+
+\begin{figure}[!htb]
+\begin{center}
+  \begin{tabular}{| l | c |}
+   \hline
+   Name & Size (Byte(s)) \\
+   \hline
+   Salt                & 22 \\
+   Nonce               & 10 \\
+   Encrypted data      & Stream size - 32 \\
+   \hline
+  \end{tabular}
+\end{center}
+\caption{Encrypted PNG}
+\label{table:png_enc}
+\end{figure}
+
+
+I designed a custom encrypted file format which aimed to be lightweight. 
+
+\subsection{PNG chunk}
+
+\begin{figure}[!htb]
+\begin{center}
+  \begin{tabular}{| l | c |}
+   \hline
+   Name & Size (Byte(s)) \\
+   \hline
+   Size                & 4 \\
+   Type                & 4 \\
+   Data                & Size \\
+   CRC32               & 4 \\
+   \hline
+  \end{tabular}
+\end{center}
+\caption{PNG Chunk}
+\label{table:png_chunk}
+\end{figure}
+
+Figure \ref{table:png_chunk} shows the general layout of a PNG chunk, between different chunks the size will vary depending on the data and certain types may even have a size of zero which leads to an omitted data section. The CRC32 value is calculated by only the type, and the data. The PNG specification notes that integers larger than a single byte are stored in Big-Endian.
+
+\subsubsection{IHDR}
+
+\begin{figure}[!htb]
+\begin{center}
+  \begin{tabular}{| l | c |}
+   \hline
+   Name & Size (Byte(s)) \\
+   \hline
+   Width               & 4 \\
+   Height              & 4 \\
+   Bit depth           & 1 \\
+   Colour type         & 1 \\
+   Compression method  & 1 \\
+   Filter method       & 1 \\
+   Interlace method    & 1 \\
+   \hline
+  \end{tabular}
+\end{center}
+\caption{Data field of IHDR chunk}
+\label{table:ihdr}
+\end{figure}
+
+The IHDR chunk's data field is in sequential order as displayed in Figure \ref{table:ihdr}. Width and height are written in Big-Endian byte-order as they are bigger than a larger byte.
+
+\subsubsection{IDAT}
+
+The data field of the IDAT chunk contains only a stream in zlib format\cite{zlib}, generally compressed with DEFLATE using dynamic Huffman coding. However, this program doesn't implement any of the zlib/DEFLATE specifications themselves and instead uses the zlib library \cite{libzlib}, for this reason this field can be regarded as an `opaque' data field.
+
+\subsubsection{IEND}
+
+The IEND chunk has an empty data field, and thus the chunk is 12 static bytes.
+
 \section{Prototype}
 
 For the `prototype', I implemented the ChaCha20 symmetric cipher. A benefit of using a symmetric cipher is to preserve storage space on the camera. Asymmetric ciphers would generally increase the size of the cipher-text compared to the plain-text. In practice, the key would be randomly generated, and then added to an asymmetrically encrypted database on the camera. The decryption key for this database would not be stored on the camera. However, for simplicity's sake, this key generation will not be applied.
 
 The encryption is based on an add and rotate cipher which generates a pseudo-random stream of data in 64 byte chunks up to a maximum of 256 GiB due to the 32 bit block counter (${2^{32}}\times64$). This stream is then XOR'd with the plain-text to produce the cipher-text output.
 
-See \ref{appendix:a}
+See Appendix \ref{appendix:a}.
 
 \chapter{Technical Solution}
+
+See Appendix \ref{appendix:b}.
 
 \chapter{Testing}
 
@@ -132,19 +212,25 @@ Ask about how to show this effectively.
 
 \section{System Improvements}
 
+Use asymmetric encryption in order for a blind-photographer threat model.
+
 \begin{thebibliography}{9}
-\bibitem{freedompress} \url{https://freedom.press/news/over-150-filmmakers-and-photojournalists-call-major-camera-manufacturers-build-encryption-their-cameras/}
 \bibitem{canonenc} \url{http://www.canon.co.jp/imaging/osk/osk-e3/encryption/index.html}
 \bibitem{stackoverflow} \url{https://photo.stackexchange.com/questions/33902/do-any-dslrs-offer-in-camera-file-encryption}
+\bibitem{freedompress} \url{https://freedom.press/news/over-150-filmmakers-and-photojournalists-call-major-camera-manufacturers-build-encryption-their-cameras/}
 \bibitem{deflate} \url{https://tools.ietf.org/html/rfc1951}
 \bibitem{crc32} \url{https://www.w3.org/TR/PNG/#5CRC-algorithm}
 \bibitem{salsa20} \url{http://www.ecrypt.eu.org/stream/salsa20pf.html}
+\bibitem{munit} \url{https://nemequ.github.io/munit/}
+\bibitem{zlib} \url{https://tools.ietf.org/html/rfc1950}
+\bibitem{libzlib} \url{https://zlib.net}
 \end{thebibliography}
 \clearpage
 
 \appendix
 \chapter{Prototype}
 \label{appendix:a}
+\section{prototype.c}
 \inputminted[linenos,breaklines,fontsize=\small]{c}{prototype.c}
 \clearpage
 

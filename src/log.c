@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <stdarg.h>
+#include <signal.h>
 
 char *LOG_LEVEL[] = {
     "?", /* debug info */
@@ -38,6 +39,9 @@ void pprintf(int level, const char* format, ...)
     vfprintf(LOG_FILE, format, args);
     va_end(args);
     fprintf(LOG_FILE, "\n");
+
+    if (level == LOG_ERROR)
+        raise(SIGABRT);
 }
 
 void print_chunk(png_chunk *chunk)
@@ -60,8 +64,6 @@ void print_chunk(png_chunk *chunk)
             break;
         case PNG_IDAT:
             pprintf(LOG_DEBUG, "CHUNK: IDAT");
-            pprintf(LOG_DEBUG, "idat->zlib_cmf: 0x%02x", ((png_idat*)chunk)->zlib_cmf);
-            pprintf(LOG_DEBUG, "idat->zlib_flag: 0x%02x", ((png_idat*)chunk)->zlib_flag);
             pprintf(LOG_DEBUG, "idat->deflate_flag: 0x%02x", ((png_idat*)chunk)->deflate_flag);
             pprintf(LOG_DEBUG, "idat->data: @0x%p", ((png_idat*)chunk)->data);
             pprintf(LOG_DEBUG, "idat->data_size: 0x%08x", ((png_idat*)chunk)->data_size);

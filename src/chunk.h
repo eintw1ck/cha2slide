@@ -102,8 +102,6 @@ typedef struct png_plte
 typedef struct png_idat
 {
     uint32_t type;
-    uint8_t zlib_cmf;
-    uint8_t zlib_flag;
     uint8_t deflate_flag; /* 0b0.00.00000  */
     uint8_t *data;
     uint32_t data_size;

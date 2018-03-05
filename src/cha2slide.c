@@ -90,9 +90,7 @@ int encode(FILE *input, FILE *output, uint32_t width)
         pprintf(LOG_WARNING, "Input data length (%d) is not divisable by given width (%d). Truncating data, this may output an incorrect image.", size, width);
     else
         pprintf(LOG_INFO, "size %d", size);
-    png_chunk **chunks = malloc(4*sizeof(png_chunk*));
-    for (int i = 0; i < 4; i++) chunks[i] = NULL;
-
+    png_chunk **chunks = calloc(4, sizeof(png_chunk*));
     int ret = 0;
     if ((ret = png_new_ihdr((png_ihdr**)&chunks[0], width, size/(width*3), 8, png_color_truecolor, png_interlace_none))) {
         pprintf(LOG_ERROR, "Couldn't create new IHDR chunk: %01x.", ret);

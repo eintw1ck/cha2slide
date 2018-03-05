@@ -10,6 +10,9 @@
  * 16, 32 and 64 bit values.
  */
 static size_t fwrite_crc(const void *data, size_t size, FILE *file, uint32_t *crc, int bswap) {
+    /* Temporary variables to allow the fwrite call to access memory of the bswap'd value without
+     * having to write the bswap'd value to the original memory (thus overwriting a 'read-only'
+     * value. */
     uint16_t u16;
     uint32_t u32;
     uint64_t u64;
@@ -124,8 +127,6 @@ int png_new_idat(png_idat **chunk, uint8_t *data, uint32_t data_size, uint32_t w
     if (!(*chunk)) (*chunk) = malloc(sizeof(png_idat));
     (*chunk)->type = PNG_IDAT;
 
-    (*chunk)->zlib_cmf = zlib_cmf_method_deflate | zlib_cinfo(0);
-    (*chunk)->zlib_flag = zlib_fcheck(((uint16_t)(*chunk)->zlib_cmf << 8) + zlib_flevel_default) & 0xFF;
     (*chunk)->deflate_flag = 1 << 2;
 
     png_set_idat_data((*chunk), data, data_size, width);

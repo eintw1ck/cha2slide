@@ -1,9 +1,9 @@
 #if !defined(__CHACHA20_H)
 #define __CHACHA20_H
 
-#include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 /* Default block counter value */

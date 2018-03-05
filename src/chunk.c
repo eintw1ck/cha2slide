@@ -16,7 +16,6 @@ static inline uint32_t bswap32(uint32_t x)
     return (((uint32_t)(bswap16((uint16_t)(x))) << 16) | (uint32_t)(bswap16((uint16_t)(x >> 16))));
 }
 
-
 static inline uint64_t bswap64(uint64_t x)
 {
     return (((uint64_t)(bswap32((uint32_t)(x))) << 32) | (uint64_t)(bswap32((uint32_t)(x >> 32))));
@@ -26,7 +25,8 @@ static inline uint64_t bswap64(uint64_t x)
  * Wrapper function for fwrite to enable on-write calculation of CRCs and bswapping of
  * 16, 32 and 64 bit values.
  */
-static size_t fwrite_crc(const void *data, size_t size, FILE *file, uint32_t *crc, int bswap) {
+static size_t fwrite_crc(const void *data, size_t size, FILE *file, uint32_t *crc, int bswap)
+{
     /* Temporary variables to allow the fwrite call to access memory of the bswap'd value without
      * having to write the bswap'd value to the original memory (thus overwriting a 'read-only'
      * value. */
@@ -42,15 +42,15 @@ static size_t fwrite_crc(const void *data, size_t size, FILE *file, uint32_t *cr
         case 1:
             break;
         case 2:
-            u16 = bswap16(*(uint16_t*)data);
+            u16 = bswap16(*(uint16_t *)data);
             data = &u16;
             break;
         case 4:
-            u32 = bswap32(*(uint32_t*)data);
+            u32 = bswap32(*(uint32_t *)data);
             data = &u32;
             break;
         case 8:
-            u64 = bswap64(*(uint64_t*)data);
+            u64 = bswap64(*(uint64_t *)data);
             data = &u64;
             break;
         default:
@@ -65,23 +65,25 @@ static size_t fwrite_crc(const void *data, size_t size, FILE *file, uint32_t *cr
     return fwrite(data, 1, size, file);
 }
 
-#define BEGIN_CHUNK(file, type) \
-    int begin = ftell(file); \
-    uint32_t crc = DEFAULT_CRC32; \
+#define BEGIN_CHUNK(file, type)                                                                                        \
+    int begin = ftell(file);                                                                                           \
+    uint32_t crc = DEFAULT_CRC32;                                                                                      \
     fseek(file, 4, SEEK_CUR)
 
-#define END_CHUNK(size) \
-    int end = ftell(file); \
-    fseek(file, begin, SEEK_SET); \
-    fwrite_crc(&size, 4, file, 0, 1); \
-    fseek(file, end, SEEK_SET); \
+#define END_CHUNK(size)                                                                                                \
+    int end = ftell(file);                                                                                             \
+    fseek(file, begin, SEEK_SET);                                                                                      \
+    fwrite_crc(&size, 4, file, 0, 1);                                                                                  \
+    fseek(file, end, SEEK_SET);                                                                                        \
     fwrite_crc(&crc, 4, file, 0, 1)
 
-int png_new_ihdr(png_ihdr **chunk, uint32_t width, uint32_t height, uint8_t bit_depth, uint8_t color_type, uint8_t interlace_method)
+int png_new_ihdr(png_ihdr **chunk, uint32_t width, uint32_t height, uint8_t bit_depth, uint8_t color_type,
+                 uint8_t interlace_method)
 {
-    if (!(*chunk)) (*chunk) = malloc(sizeof(png_ihdr));
+    if (!(*chunk))
+        (*chunk) = malloc(sizeof(png_ihdr));
     (*chunk)->type = PNG_IHDR;
-    
+
     if (!((width & 0x7FFFFFFF) && (height & 0x7FFFFFFF)))
         return 1; /* width or height is not a 31 bit integer */
     (*chunk)->width = width;
@@ -97,7 +99,8 @@ int png_new_ihdr(png_ihdr **chunk, uint32_t width, uint32_t height, uint8_t bit_
     case 1:
     case 2:
     case 4:
-        if (!(bit_depth & 0x0018)) /* bit depth is not 8 or 16 for grayscale with alpha, truecolor or truecolor with alpha */
+        if (!(bit_depth &
+              0x0018)) /* bit depth is not 8 or 16 for grayscale with alpha, truecolor or truecolor with alpha */
             return 4;
         break;
     default: /* color type is unknown */
@@ -109,39 +112,43 @@ int png_new_ihdr(png_ihdr **chunk, uint32_t width, uint32_t height, uint8_t bit_
     if (interlace_method & 0xFFFE)
         return 6; /* interlace_method is not 1 or 0 */
     (*chunk)->interlace_method = interlace_method;
-    
+
     return 0;
 }
 
 int png_new_plte(png_plte **chunk, uint8_t **palette, uint8_t palette_size)
 {
-    if (!(*chunk)) (*chunk) = malloc(sizeof(png_plte));
+    if (!(*chunk))
+        (*chunk) = malloc(sizeof(png_plte));
     (*chunk)->type = PNG_PLTE;
-    
+
     (*chunk)->palette_size = palette_size;
     (*chunk)->palette = palette;
-    
+
     return 0;
 }
 
-int png_set_idat_data(png_idat *chunk, uint8_t *data, uint32_t data_size, uint32_t width) {
+int png_set_idat_data(png_idat *chunk, uint8_t *data, uint32_t data_size, uint32_t width)
+{
     uint32_t height = data_size / (width ? width : 1);
 
-    if (!chunk) return 1;
+    if (!chunk)
+        return 1;
 
     chunk->data_size = data_size + height; /* include space for filter type byte for each row */
     chunk->data = malloc(chunk->data_size);
 
-    for (int i = 0; i < (data_size/width); i++) {
-        chunk->data[i*(width+1)] = 0;
-        memcpy(&chunk->data[1+i*(width+1)], &data[i*width], width);
+    for (int i = 0; i < (data_size / width); i++) {
+        chunk->data[i * (width + 1)] = 0;
+        memcpy(&chunk->data[1 + i * (width + 1)], &data[i * width], width);
     }
     return 0;
 }
 
 int png_new_idat(png_idat **chunk, uint8_t *data, uint32_t data_size, uint32_t width)
 {
-    if (!(*chunk)) (*chunk) = malloc(sizeof(png_idat));
+    if (!(*chunk))
+        (*chunk) = malloc(sizeof(png_idat));
     (*chunk)->type = PNG_IDAT;
 
     (*chunk)->deflate_flag = 1 << 2;
@@ -153,7 +160,8 @@ int png_new_idat(png_idat **chunk, uint8_t *data, uint32_t data_size, uint32_t w
 
 int png_new_iend(png_iend **chunk)
 {
-    if (!(*chunk)) (*chunk) = malloc(sizeof(png_iend));
+    if (!(*chunk))
+        (*chunk) = malloc(sizeof(png_iend));
     (*chunk)->type = PNG_IEND;
 
     return 0;
@@ -161,7 +169,7 @@ int png_new_iend(png_iend **chunk)
 
 int png_write_signature(FILE *file)
 {
-    uint8_t signature[8] = { 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A };
+    uint8_t signature[8] = {0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A};
 
     return !(fwrite(signature, 8, 1, file) == 1);
 }
@@ -191,7 +199,7 @@ int png_write_plte(FILE *file, png_plte *chunk)
     BEGIN_CHUNK(file, &chunk->type);
 
     if (chunk->palette_size) {
-        for (int i = 0; i < chunk->palette_size/3; i++) {
+        for (int i = 0; i < chunk->palette_size / 3; i++) {
             fwrite_crc(chunk->palette[i], 3, file, &crc, 0);
         }
     }
@@ -221,7 +229,7 @@ int png_write_idat(FILE *file, png_idat *chunk)
 
     /* should use Z_FILTERED as we are doing PNG, but dont actually do filtering so it doesnt do anything */
     int strategy = Z_FILTERED;
-    int level    = Z_DEFAULT_COMPRESSION;
+    int level = Z_DEFAULT_COMPRESSION;
 
     switch (chunk->deflate_flag) {
     case 0: {
@@ -275,26 +283,26 @@ int png_write_idat(FILE *file, png_idat *chunk)
 
 int png_write_iend(FILE *file, png_iend *chunk)
 {
-    uint8_t iend[12] = { 0x00, 0x00, 0x00, 0x00, 'I', 'E', 'N', 'D', 0xAE, 0x42, 0x60, 0x82 };
+    uint8_t iend[12] = {0x00, 0x00, 0x00, 0x00, 'I', 'E', 'N', 'D', 0xAE, 0x42, 0x60, 0x82};
     (void)(chunk);
     return !(fwrite(iend, 12, 1, file) == 1);
 }
 
-
 int png_write_chunk(FILE *file, png_chunk *chunk)
 {
-    switch (((png_chunk*)chunk)->type) {
-        case PNG_IHDR:
-            return png_write_ihdr(file, (png_ihdr*)chunk);
-        case PNG_PLTE:
-            return png_write_plte(file, (png_plte*)chunk);
-        case PNG_IDAT:
-            return png_write_idat(file, (png_idat*)chunk);
-        case PNG_IEND:
-            return png_write_iend(file, (png_iend*)chunk);
-        default:
-            fprintf(stderr, "\x1b[31mEINVAL: unable to write unknown chunk type (%04x).\x1b[0m\n", ((png_chunk*)chunk)->type);
-            exit(EXIT_FAILURE);
+    switch (((png_chunk *)chunk)->type) {
+    case PNG_IHDR:
+        return png_write_ihdr(file, (png_ihdr *)chunk);
+    case PNG_PLTE:
+        return png_write_plte(file, (png_plte *)chunk);
+    case PNG_IDAT:
+        return png_write_idat(file, (png_idat *)chunk);
+    case PNG_IEND:
+        return png_write_iend(file, (png_iend *)chunk);
+    default:
+        fprintf(stderr, "\x1b[31mEINVAL: unable to write unknown chunk type (%04x).\x1b[0m\n",
+                ((png_chunk *)chunk)->type);
+        exit(EXIT_FAILURE);
     }
 }
 

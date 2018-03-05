@@ -1,8 +1,8 @@
 #if !defined(__CRC32_H)
 #define __CRC32_H
 
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #define DEFAULT_CRC32 0
 

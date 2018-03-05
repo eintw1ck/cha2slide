@@ -10,7 +10,7 @@ enum {
     LOG_ERROR,
 };
 
-void pprintf(int level, const char* format, ...);
+void pprintf(int level, const char *format, ...);
 void print_chunk(png_chunk *chunk);
 
 #endif /* __LOG_H */

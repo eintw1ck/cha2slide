@@ -1,0 +1,4 @@
+[wrap-git]
+directory=munit
+url=https://github.com/eintw1ck/munit/
+revision=head

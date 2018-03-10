@@ -78,6 +78,14 @@ uint32_t parseuint(char *str)
     return x;
 }
 
+/**
+ * @brief Encode a PNG from raw RGB
+ *
+ * @param input Input file
+ * @param output Output file
+ * @param width Pixel width
+ * @return Non-null on failure
+ */
 int encode(FILE *input, FILE *output, uint32_t width)
 {
     off_t size;
@@ -101,6 +109,7 @@ int encode(FILE *input, FILE *output, uint32_t width)
     if ((ret = png_new_ihdr((png_ihdr **)&chunks[0], width, size / (width * 3), 8, png_color_truecolor,
                             png_interlace_none))) {
         pprintf(LOG_ERROR, "Couldn't create new IHDR chunk: %01x.", ret);
+        return 1;
     }
     print_chunk(chunks[0]);
     png_new_idat((png_idat **)&chunks[1], pixel_data, size, width * 3);
@@ -108,7 +117,10 @@ int encode(FILE *input, FILE *output, uint32_t width)
     png_new_iend((png_iend **)&chunks[2]);
 
     png_write(output, chunks);
-
+    free(chunks[0]);
+    free(((png_idat *)chunks[1])->data);
+    free(chunks[1]);
+    free(chunks[2]);
     free(pixel_data);
 
     return 0;

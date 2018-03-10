@@ -23,6 +23,12 @@ char *LOG_LEVEL_COLOR[] = {
 FILE *LOG_FILE = NULL;
 int LOG_LEVEL_SUPPRESS = 0;
 
+/**
+ * @brief p(retty)printf
+ *
+ * @param level Severity of the log message
+ * @param format printf-style format specifier
+ */
 void pprintf(int level, const char *format, ...)
 {
     va_list args;

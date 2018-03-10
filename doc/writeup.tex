@@ -1,9 +1,13 @@
 \documentclass{report}
 
 \usepackage[toc,page]{appendix}
-\usepackage{xcolor}
+\usepackage[gray,table]{xcolor}
 \usepackage{minted}
 \usepackage{url}
+\usepackage{multirow}
+\usepackage{amssymb}
+\usepackage{float}
+
 \def\UrlBreaks{\do\/\do-}
 
 \renewcommand{\theFancyVerbLine}{\sffamily\color{blue!50!white}{\footnotesize\arabic{FancyVerbLine}}}
@@ -14,33 +18,51 @@
 \title{ChaChaSlide}
 \author{Josh de Kock}
 
-\maketitle
-
 \tableofcontents
 \clearpage
 
+\renewcommand{\abstractname}{Background}
+\begin{abstract}
+Cameras have for a long time had poor security, consisting of either no encryption available at all, or extremely weak encryption--and in more recent developments, they have included sometimes even web-servers for sharing images across a network, avoiding the need to use a cable to transfer photos off the device. In this paper we present an approach to a PNG encoder with an encryption extension specifically aimed at running on DSLR firmware. The inclusion of the encoder into actual firmware is not written or discussed for simplicity's sake, though it is designed with this in mind.
+\end{abstract}
+
 \chapter{Analysis}
-
-\section{Background}
-Cameras have for a long time had poor security, consisting of either no encryption available at all, or extremely weak encryption--and in more recent developments, they have included sometimes even web-servers for sharing images across a network, avoiding the need to use a cable to transfer photos off the device, or old Linux-based operating systems. In this paper we present an approach to a PNG encoder with an encryption extension specifically aimed at running on DSLR firmware. The inclusion of the encoder into actual firmware is not written or discussed for simplicity's sake, though it is designed with this in mind.
-
-In the past, the only Camera manufacturer who has tried to implement slightly feasible encryption was Canon, in their EOS-1Ds Mark III, and EOS-1D Mark III\cite{canonenc}--however it was poorly executed and could be broken by dumping encryption keys from the firmware (which were unique but static)\cite{stackoverflow}.
 
 \section{Statement of Problem}
 
-Encryption in Cameras for both video and images have been a basic feature requested by many journalists\cite{freedompress}. 
+Encryption in Cameras for both video and images has been a basic feature requested by many journalists\cite{freedompress} and photographers who capture in dangerous environments or under strict rules. Cameras do not have powerful computation hardware so encryption must be cheap, and storage is also limited as it is expensive for the high-speed which cameras require, so the encryption must have little overhead. Most Cameras nowadays do not fulfil these requirements.
 
 \section{Target Users}
 
-Journalists.
+The target users include anyone who works with sensitive photography such as government forces (special forces, intelligence agencies), civilian freedom fighters in oppressed states, and journalists. Focusing on the journalists they said that `[they] face a critical gap between the moment [they] shoot [their] footage and the first opportunity to get that footage onto more secure devices.' Further expanding on the dangers of no in-transit encryption, `photographs and footage that [they] take can be examined and searched by the police, military, and border agents in countries where [they] operate and travel, and the consequences can be dire.' 
+
+\section{Research}
+
+In the past, the only Camera manufacturer who has tried to implement slightly feasible encryption was Canon, in their EOS-1Ds Mark III, and EOS-1D Mark III\cite{canonenc}--however it was poorly executed, and could be broken by dumping encryption keys from the firmware (which were unique but static)\cite{stackoverflow}.
+
+\subsection{Choice of Algorithms}
+
+\subsubsection{CRC32}
+
+PNG uses this algorithm in the specification\cite{png} in each chunk so this is a required algorithm.
+
+\subsubsection{ChaCha20}
+
+ChaCha20 is a new symmetric stream cipher which makes it attractive as it can have extremely little overhead (the stream is XOR'd with the plain-text making most of the data which needs to be saved a one-to-one translation in terms of size). It is also the chosen cipher for Google's new SSL encryption scheme consisting of ChaCha20 and Poly1305\cite{googlepost}.
+
+\subsubsection{BLAKE2b}
+
+BLAKE2b is a hashing algorithm which is based off ChaCha20, which makes it a good fit as the project already uses ChaCha20.
 
 \section{Objectives}
 
-A PNG Encoder with En/Decryption and a command-line interface.
+\begin{enumerate}
+\item A PNG Encoder with En/Decryption, a command-line interface, and full integrated unit tests.
+\end{enumerate}
 
 \subsection{Codec}
 \begin{enumerate}
-    \item Parse and construct a PNG `chunk' data stream which is a structured sequence of bytes.
+    \item Parse, and construct a PNG `chunk' data stream which is a structured sequence of bytes.
     \item Implement a byte-wise CRC32 algorithm \cite{crc32} with a look-up table for data validation
     \item Implement the basic PNG chunks
     \begin{enumerate}
@@ -49,13 +71,12 @@ A PNG Encoder with En/Decryption and a command-line interface.
         \item Construct the data `IDAT' chunk which contains the encoded image data data-stream.
         \item Construct the end `IEND' chunk which indicates the end of the PNG data-stream.
     \end{enumerate}
-    \item DEFLATE\cite{deflate} compliant `compressor'
-    \item \textsc{Extension:} \textit{Actual DEFLATE compression}
+    \item DEFLATE\cite{deflate} compression with zlib\cite{libzlib}
 \end{enumerate}
 
 \subsection{Encryption}
 \begin{enumerate}
-    \item \textbf{ChaCha20 add and rotate XOR symmetric cipher}
+    \item \textbf{ChaCha20 add, and rotate XOR symmetric cipher}
     \begin{enumerate}
         \item Block setup
         \item Basic round
@@ -67,16 +88,28 @@ A PNG Encoder with En/Decryption and a command-line interface.
         \item BLAKE2b hashing algorithm
         \item \textsc{Extension:} \textit{Use Argon2 instead of a custom PBKDF}
     \end{enumerate}
-    \item Hook up the encryption in the codec so that it encrypts after encoding and decrypts before decoding
+    \item Hook up the encryption in the codec so that it encrypts after encoding, and decrypts before decoding
 \end{enumerate}
-
-\section{Modelling}
 
 \chapter{Design}
 
 \section{High-level Overview}
 
-The program is run from a command-line and given four arguments. The first indicates the `command' to run, the commands available are `encode', `encrypt', and `decrypt', they should set certain flags in the program to execute the specified routine on the second and third arguments which are the input and output files respectively. The fourth input argument is dependent on the the command where the encoder receives a `width' argument denoting the pixel width of the input file, and a `key' argument which shall be supplied to the cryptography core if the user enters an encryption command.
+The program is run from a command-line, and given four arguments. 
+\begin{figure}[!htb]
+  \begin{verbatim}./cha2slide encode in.rbg out.png 64\end{verbatim}
+  \caption{Example encode command for a 64px wide image}\label{fig:example_encode_cmd}
+\end{figure}
+The first indicates the `command' to run, the commands available are `encode', `encrypt', and `decrypt', they should set certain flags in the program to execute the specified routine on the second, and third arguments which are the input and output files respectively.
+\begin{figure}[!htb]
+  \begin{verbatim}./cha2slide encrypt in.png out.enc passkey\end{verbatim}
+  \caption{Example encrypt command}\label{fig:example_encrypt_cmd}
+\end{figure}
+The fourth input argument is dependent on the the command where the encoder receives a `width' argument denoting the pixel width of the input file, and a `key' argument which shall be supplied to the cryptography core if the user enters an encryption command.
+\begin{figure}[!htb]
+  \begin{verbatim}./cha2slide decrypt in.enc out.png passkey\end{verbatim}
+  \caption{Example decrypt command}\label{fig:example_decrypt_cmd}
+\end{figure}
 The input file of the `encode' command should be a file in the format of RGB24 (interlaced red/green/blue values of 8-bit depth).
 
 \subsection{Encode}
@@ -94,11 +127,55 @@ The program will include three main algorithms, CRC32 for checking of data-integ
 
 \subsection{CRC32}
 
-The CRC32 algorithm is the 32-bit version of the cyclic redundancy check which uses the $x^{32}+x^{26}+x^{23}+x^{22}+x^{16}+x^{12}+x^{11}+x^{10}+x^8+x^7+x^5+x^4+x^2+x+1$ polynomial. It works by bitwise XOR-ing the polynomial with each bit-index of the input data, with null bit padding at the end of the data such that the most significant bit of the polynomial was XOR'd with the most significant bit of the input data and the least significant bit. 
+The CRC32 algorithm is the 32-bit version of the cyclic redundancy check which uses the $x^{32}+x^{26}+x^{23}+x^{22}+x^{16}+x^{12}+x^{11}+x^{10}+x^8+x^7+x^5+x^4+x^2+x+1$ polynomial. It works by bitwise XOR-ing the polynomial where the MSB of the polynomial is XOR'd with the MSB (or LSB with a reverse polynomial). 
+
+\begin{figure}[H]
+\begin{center}
+  \begin{tabular}{| c | c c c c c c c c c |}
+    \hline
+    \multirow{2}{*}{MSB} & \multicolumn{9}{c|}{Input} \\
+    \cline{2-10}
+     & \multicolumn{6}{c}{Data} & \multicolumn{3}{|c|}{Padding} \\
+    \hline
+    \multirow{2}{*}{$x^{5}$}
+    &1&1&0&1&0&1&\multicolumn{1}{|c}{0}&0&0\\
+    \cline{2-10}
+    &1&0&1&1& & & & & \\
+    \hline
+    \multirow{2}{*}{$x^{4}$}
+    &0&1&1&0&0&1&\multicolumn{1}{|c}{0}&0&0\\
+    \cline{2-10}
+    & &1&0&1&1& & & & \\
+    \hline
+    \multirow{2}{*}{$x^{3}$}
+    &0&0&1&1&1&1&\multicolumn{1}{|c}{0}&0&0\\
+    \cline{2-10}
+    & & &1&0&1&1& & & \\
+    \hline
+    \multirow{2}{*}{$x^{2}$}
+    &0&0&0&1&0&0&\multicolumn{1}{|c}{0}&0&0\\
+    \cline{2-10}
+    & & & &1&0&1&1& & \\
+    \hline
+    \multirow{2}{*}{$x^{0}$}
+    &0&0&0&0&0&1&\multicolumn{1}{|c}{1}&0&0\\
+    \cline{2-10}
+    & & & & & &1&0&1&1\\
+    \hline
+    0
+    &0&0&0&0&0&0&\multicolumn{1}{|c}{1}&1&1\\
+   \hline
+  \end{tabular}
+  \caption{Example calculation of CRC3-GSM on 6 bits of data}
+  \label{table:crc3}
+\end{center}
+\end{figure}
+
+See Figure \ref{table:crc3} for the CRC3-GSM with the polynomial $x^{4}+x+1$. Odd rows show the input data state changing as the CRC is calculated, even rows show where the polynomial is being XOR'd, with the padding at the end giving the CRC3-GSM checksum once the calculation is complete: $111_2$.
 
 \subsection{ChaCha20}
 
-ChaCha20 is a revised version of the Salsa20 algorithm \cite{salsa20} by Daniel J. Bernstein. It is a stream cipher which generates a pseudo-random stream in blocks using add-rotate-xor operations. 
+ChaCha20 is a revised version of the Salsa20 algorithm \cite{salsa20} by Daniel J. Bernstein. It is a stream cipher which generates a pseudo-random stream in blocks using add-rotate-xor operations.
 
 \subsection{BLAKE2b}
 
@@ -106,9 +183,29 @@ BLAKE2b is an improved version of the BLAKE-512 hashing algorithm which outputs 
 
 \section{Choice of Programming languages}
 
-Due to the limited hardware capabilities on the target hardware and for speed, I have chosen the low-level language, C. It allows you to write concise code while having full control over the memory usage which is important for programs which desire performance. Being a widely used language, most embedded devices will have at-least a C compiler targeted for their specific architecture.
+Due to the limited hardware capabilities on the target hardware, and for speed, I have chosen the low-level language, C. It allows you to write concise code while having full control over the memory usage which is important for programs which desire performance. Being a widely used language, most embedded devices will have at-least a C compiler targeted for their specific architecture.
 
 \section{Data Structure (In-Memory)}
+
+\subsection{PNG pixel data}
+
+The in-memory format is the data which is compressed into the IDAT section. 
+
+\begin{figure}[!htb]
+\begin{center}
+  \begin{tabular}{| c c c c c c c c c c |}
+  \hline
+   F & R & G & B & R & G & B & R & G & B \\
+   F & R & G & B & R & G & B & R & G & B \\
+   F & R & G & B & R & G & B & R & G & B \\
+  \hline
+  \end{tabular}
+\end{center}
+\caption{Example format of a 3x3 pixel image}
+\label{table:png_dat}
+\end{figure}
+\noindent
+Figure \ref{table:png_dat} shows the layout of bytes in the pixel data. F, R, G, and B are bytes of Filter Type, Red, Green, and Blue values. With varying bit-depth, RGB could have different sizes but F is always a single byte (however this program only supports 8-bit so a pixel will always be 3 bytes).
 
 \section{Data Structure (Files)}
 
@@ -129,9 +226,8 @@ Due to the limited hardware capabilities on the target hardware and for speed, I
 \caption{Encrypted PNG}
 \label{table:png_enc}
 \end{figure}
-
-
-I designed a custom encrypted file format which aimed to be lightweight. 
+\noindent
+I designed a custom encrypted file format which aims to be lightweight and simple. The nonce is required to be 10 bytes as it is fed in directly to the ChaCha20 algorithm. The salt is 22 bytes as I wanted to choose a number such that the `header' of the encrypted file totalled a power of 2, and 6 did not seem sufficiently large so I chose 22 for a total header size of 32 bytes.
 
 \subsection{PNG chunk}
 
@@ -151,36 +247,36 @@ I designed a custom encrypted file format which aimed to be lightweight.
 \caption{PNG Chunk}
 \label{table:png_chunk}
 \end{figure}
-
-Figure \ref{table:png_chunk} shows the general layout of a PNG chunk, between different chunks the size will vary depending on the data and certain types may even have a size of zero which leads to an omitted data section. The CRC32 value is calculated by only the type, and the data. The PNG specification notes that integers larger than a single byte are stored in Big-Endian.
+\noindent
+Figure \ref{table:png_chunk} shows the general layout of a PNG chunk, between different chunks the size will vary depending on the data, and certain types may even have a size of zero which leads to an omitted data section. The CRC32 value is calculated by only the type, and the data. The PNG specification notes that integers larger than a single byte are stored in Big-Endian.
 
 \subsubsection{IHDR}
 
 \begin{figure}[!htb]
 \begin{center}
   \begin{tabular}{| l | c |}
-   \hline
-   Name & Size (Byte(s)) \\
-   \hline
-   Width               & 4 \\
-   Height              & 4 \\
-   Bit depth           & 1 \\
-   Colour type         & 1 \\
-   Compression method  & 1 \\
-   Filter method       & 1 \\
-   Interlace method    & 1 \\
-   \hline
+    \hline
+    Name & Size (Byte(s)) \\
+    \hline
+    Width               & 4 \\
+    Height              & 4 \\
+    Bit depth           & 1 \\
+    Colour type         & 1 \\
+    Compression method  & 1 \\
+    Filter method       & 1 \\
+    Interlace method    & 1 \\
+    \hline
   \end{tabular}
 \end{center}
 \caption{Data field of IHDR chunk}
 \label{table:ihdr}
 \end{figure}
-
-The IHDR chunk's data field is in sequential order as displayed in Figure \ref{table:ihdr}. Width and height are written in Big-Endian byte-order as they are bigger than a larger byte.
+\noindent
+The IHDR chunk's data field is in sequential order as displayed in Figure \ref{table:ihdr}. Width and height are written in Big-Endian byte-order as they are bigger than a single byte.
 
 \subsubsection{IDAT}
 
-The data field of the IDAT chunk contains only a stream in zlib format\cite{zlib}, generally compressed with DEFLATE using dynamic Huffman coding. However, this program doesn't implement any of the zlib/DEFLATE specifications themselves and instead uses the zlib library \cite{libzlib}, for this reason this field can be regarded as an `opaque' data field.
+The data field of the IDAT chunk contains only a stream of the pixel data with filter specifiers in zlib format\cite{zlib}, generally compressed with DEFLATE using dynamic Huffman coding. However, this program doesn't implement any of the zlib/DEFLATE specifications themselves, and instead uses the zlib library \cite{libzlib}, for this reason this field can be regarded as an `opaque' data field.
 
 \subsubsection{IEND}
 
@@ -188,11 +284,9 @@ The IEND chunk has an empty data field, and thus the chunk is 12 static bytes.
 
 \section{Prototype}
 
-For the `prototype', I implemented the ChaCha20 symmetric cipher. A benefit of using a symmetric cipher is to preserve storage space on the camera. Asymmetric ciphers would generally increase the size of the cipher-text compared to the plain-text. In practice, the key would be randomly generated, and then added to an asymmetrically encrypted database on the camera. The decryption key for this database would not be stored on the camera. However, for simplicity's sake, this key generation will not be applied.
+I implemented the ChaCha20 symmetric cipher. A benefit of using a symmetric cipher is to preserve storage space on the camera. Asymmetric ciphers would generally increase the size of the cipher-text compared to the plain-text. In practice, the key would be randomly generated, and then added to an asymmetrically encrypted database on the camera. The decryption key for this database would not be stored on the camera. However, for simplicity's sake, this key generation will not be applied.
 
-The encryption is based on an add and rotate cipher which generates a pseudo-random stream of data in 64 byte chunks up to a maximum of 256 GiB due to the 32 bit block counter (${2^{32}}\times64$). This stream is then XOR'd with the plain-text to produce the cipher-text output.
-
-See Appendix \ref{appendix:a}.
+The encryption is based on an add and rotate cipher which generates a pseudo-random stream of data in 64 byte chunks up to a maximum of 256 GiB due to the 32 bit block counter (${2^{32}}\times64$). This stream is then XOR'd with the plain-text to produce the cipher-text output. See Appendix \ref{appendix:a} for the code.
 
 \chapter{Technical Solution}
 
@@ -200,19 +294,79 @@ See Appendix \ref{appendix:b}.
 
 \chapter{Testing}
 
-Ask about how to show this effectively.
+\begin{figure}[!htb]
+\begin{center}
+\begin{verbatim}
+Running test suite with seed 0xd409c047...
+cha2slide/blake2b/algorithm          [ OK    ] [ 0.00004000 / 0.00003500 CPU ]
+cha2slide/chacha20/quarter_round     [ OK    ] [ 0.00001800 / 0.00001300 CPU ]
+cha2slide/chacha20/setup             [ OK    ] [ 0.00001800 / 0.00001300 CPU ]
+cha2slide/chacha20/block             [ OK    ] [ 0.00002200 / 0.00001700 CPU ]
+cha2slide/chacha20/stream            [ OK    ] [ 0.00002300 / 0.00001800 CPU ]
+cha2slide/chacha20/encrypt           [ OK    ] [ 0.00003700 / 0.00003000 CPU ]
+cha2slide/crc32/gen_lut              [ OK    ] [ 0.00005900 / 0.00005200 CPU ]
+cha2slide/crc32/algorithm            [ OK    ] [ 0.00004900 / 0.00004500 CPU ]
+cha2slide/chunk/write/signature      [ OK    ] [ 0.00002900 / 0.00002500 CPU ]
+cha2slide/chunk/write/ihdr_chunk     [ OK    ] [ 0.00007400 / 0.00006800 CPU ]
+cha2slide/chunk/write/plte_chunk     [ OK    ] [ 0.00000800 / 0.00000200 CPU ]
+cha2slide/chunk/write/idat_chunk     [ OK    ] [ 0.00038400 / 0.00037900 CPU ]
+cha2slide/chunk/write/iend_chunk     [ OK    ] [ 0.00003900 / 0.00003300 CPU ]
+cha2slide/chunk/write/chunks         [ OK    ] [ 0.00036300 / 0.00035700 CPU ]
+14 of 14 (100%) tests successful, 0 (0%) test skipped.
+\end{verbatim}
+\end{center}
+\caption{Unit tests output}
+\label{table:tests}
+\end{figure}
+
+Tests were integrated into as a subsection of program itself as a series of unit tests. For BLAKE2b, ChaCha20, and CRC32, I used the official test vectors (expected outputs for specified inputs). I wrote the test vectors for PNG chunks by hand, using the official PNG specification as reference.
 
 \chapter{Evaluation}
 
 \section{Overall effectiveness of System}
 
+The system has full coverage of the initial objectives (exluding extension objectives) with all tests passing and thus the program working in its entirity. It was designed with portability and usage outside of the A-Level coursework in mind (and in all honesty, as a primary objective), to this end I have used a modular style of programming making \begin{texttt}cha2slide.c\end{texttt} the only component which would need to be changed to integrate it into actual Camera firmware (depending on how the firmware works et cetera).
+
 \section{Objectives}
 
-\section{End-user Feedback}
+\begin{enumerate}
+\item A PNG Encoder with En/Decryption, a command-line interface, and full integrated unit tests. \checkmark
+\end{enumerate}
+
+\subsection{Codec}
+\begin{enumerate}
+    \item Parse, and construct a PNG `chunk' data stream which is a structured sequence of bytes. \checkmark
+    \item Implement a byte-wise CRC32 algorithm \cite{crc32} with a look-up table for data validation \checkmark
+    \item Implement the basic PNG chunks \checkmark
+    \begin{enumerate}
+        \item Construct the header `IHDR' chunk which contains the Width, Height, Bit depth, Colour type, Compression method, Filter method, and Interlace method. \checkmark
+%        \item Construct the palette `PLTE' chunk which contains the colour palette (if image is indexed)
+        \item Construct the data `IDAT' chunk which contains the encoded image data data-stream. \checkmark
+        \item Construct the end `IEND' chunk which indicates the end of the PNG data-stream. \checkmark
+    \end{enumerate}
+    \item DEFLATE\cite{deflate} compression with zlib\cite{libzlib} \checkmark
+\end{enumerate}
+
+\subsection{Encryption}
+\begin{enumerate}
+    \item \textbf{ChaCha20 add, and rotate XOR symmetric cipher} \checkmark
+    \begin{enumerate}
+        \item Block setup \checkmark
+        \item Basic round \checkmark
+        \item Block round \checkmark
+        \item XOR function to produce a cipher-text using the pseudo-random data stream generated from the ChaCha20 algorithm, and a plain-text \checkmark
+    \end{enumerate}
+    \item A Password-Based Key Derivation Function \checkmark
+    \begin{enumerate}        
+        \item BLAKE2b hashing algorithm \checkmark
+        \item \textsc{Extension:} \textit{Use Argon2 instead of a custom PBKDF}
+    \end{enumerate}
+    \item Hook up the encryption in the codec so that it encrypts after encoding, and decrypts before decoding \checkmark
+\end{enumerate}
 
 \section{System Improvements}
 
-Use asymmetric encryption in order for a blind-photographer threat model.
+The system only supports a static bit-depth, and colour type; supporting more of the available colour types as well as other optional features in the PNG specification like interlacing would be a good improvement. I could also use a better algorithm for deriving a key from a password like Argon2\cite{argon2} which is based on the BLAKE2b hashing algorithm, instead of purely hashing and salting the key.
 
 \begin{thebibliography}{9}
 \bibitem{canonenc} \url{http://www.canon.co.jp/imaging/osk/osk-e3/encryption/index.html}
@@ -224,6 +378,9 @@ Use asymmetric encryption in order for a blind-photographer threat model.
 \bibitem{munit} \url{https://nemequ.github.io/munit/}
 \bibitem{zlib} \url{https://tools.ietf.org/html/rfc1950}
 \bibitem{libzlib} \url{https://zlib.net}
+\bibitem{googlepost} \url{https://security.googleblog.com/2014/04/speeding-up-and-strengthening-https.html}
+\bibitem{png} \url{https://www.w3.org/TR/2003/REC-PNG-20031110/}
+\bibitem{argon2} \url{https://datatracker.ietf.org/doc/draft-irtf-cfrg-argon2/}
 \end{thebibliography}
 \clearpage
 
